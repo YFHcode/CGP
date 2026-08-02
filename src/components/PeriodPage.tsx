@@ -7,11 +7,13 @@ import { RelatedLinks, relatedLinks } from './RelatedLinks';
 import { JsonLd } from './JsonLd';
 import { cn } from '@/lib/utils';
 import { breadcrumbSchema } from '@/lib/seo';
+import { periodQuestions, periodFaqSchema } from '@/lib/period-faq';
 import {
     METAL_ROUTES,
     adjacentPeriods,
     parentPeriod,
     slugForKey,
+    formatLongDate,
     type PeriodStats,
 } from '@/lib/history-periods';
 import type { HistoryPoint, MetalSymbol } from '@/types';
@@ -36,16 +38,6 @@ function usd(value: number): string {
     });
 }
 
-function formatDate(iso: string): string {
-    const date = new Date(`${iso}T00:00:00Z`);
-    return date.toLocaleDateString('en-US', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'UTC',
-    });
-}
-
 export function PeriodPage({ metal, stats, series, otherSeries, source }: PeriodPageProps) {
     const route = METAL_ROUTES[metal];
     const { period } = stats;
@@ -58,6 +50,10 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
 
     const isSingleDay = period.kind === 'day';
     const name = route.name.toLowerCase();
+
+    // Long-tail Q&A generated from the real figures. This is where search
+    // intent like "what was the average gold price in March 2026" is targeted.
+    const questions = periodQuestions(metal, stats);
 
     const trail = [
         { name: `${route.name} price history`, href: route.base },
@@ -83,6 +79,7 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                         variableMeasured: `${route.name} price (USD per troy ounce)`,
                         creator: { '@type': 'Organization', name: 'ChartGoldPrice' },
                     },
+                    periodFaqSchema(questions),
                 ]}
             />
 
@@ -140,8 +137,8 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                     <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         {[
                             { label: isSingleDay ? 'Close' : 'Period close', value: usd(stats.close) },
-                            { label: 'High', value: usd(stats.high), sub: formatDate(stats.highDate) },
-                            { label: 'Low', value: usd(stats.low), sub: formatDate(stats.lowDate) },
+                            { label: 'High', value: usd(stats.high), sub: formatLongDate(stats.highDate) },
+                            { label: 'Low', value: usd(stats.low), sub: formatLongDate(stats.lowDate) },
                             {
                                 label: isSingleDay ? 'Previous close' : 'Average',
                                 value: isSingleDay
@@ -220,13 +217,13 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                                             <tr key={point.date} className="border-b border-white/5">
                                                 <td className="px-4 py-2">
                                                     {period.kind === 'day' ? (
-                                                        formatDate(point.date)
+                                                        formatLongDate(point.date)
                                                     ) : (
                                                         <Link
                                                             href={`${route.base}/${slugForKey(point.date, 'day')}`}
                                                             className="text-gold-400 hover:text-gold-300"
                                                         >
-                                                            {formatDate(point.date)}
+                                                            {formatLongDate(point.date)}
                                                         </Link>
                                                     )}
                                                 </td>
@@ -260,6 +257,27 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                     </div>
                 </section>
             )}
+
+            {/* Long-tail Q&A. Question-shaped headings with the answer directly
+                beneath match how these searches are actually phrased, and give
+                even a single-day page substantive unique content. */}
+            <section aria-labelledby="faq-heading" className="bg-black py-10">
+                <div className="container mx-auto px-4">
+                    <h2 id="faq-heading" className="mb-6 text-2xl font-bold text-white">
+                        {route.name} price {isSingleDay ? 'on' : 'in'} {period.label}: common questions
+                    </h2>
+                    <div className="mx-auto max-w-4xl divide-y divide-white/5">
+                        {questions.map((entry) => (
+                            <div key={entry.question} className="py-5">
+                                <h3 className="mb-2 text-lg font-semibold text-white">
+                                    {entry.question}
+                                </h3>
+                                <p className="text-zinc-300">{entry.answer}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
 
             {/* Previous / next navigation — also spreads link equity along the archive. */}
             <section className="bg-zinc-900/30 py-8">

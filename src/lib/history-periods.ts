@@ -48,6 +48,21 @@ function monthNumberFromName(name: string): number {
     return MONTH_SLUGS.indexOf(name.toLowerCase()) + 1; // 0 when unknown
 }
 
+/**
+ * Formats an ISO date the same way period labels are built ("13 February
+ * 2025"), so a page never mixes that with the en-US "February 13, 2025" style
+ * in its headings, tables and answers.
+ */
+export function formatLongDate(iso: string): string {
+    const match = DAY_RE.exec(iso);
+    if (!match) return iso;
+
+    const m = Number(match[2]);
+    if (!isValidMonth(m)) return iso;
+
+    return `${Number(match[3])} ${MONTH_NAMES[m - 1]} ${match[1]}`;
+}
+
 /** Builds the canonical URL slug for an ISO key. */
 export function slugForKey(key: string, kind: PeriodKind): string {
     if (kind === 'year') return key;
