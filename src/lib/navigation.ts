@@ -32,4 +32,11 @@ export const RESOURCE_NAV: NavLink[] = [
 ];
 
 export const SITE_NAME = 'ChartGoldPrice';
-export const SITE_URL = 'https://chartgoldprice.com';
+/**
+ * Canonical origin. MUST match the production domain configured in Vercel.
+ *
+ * www is the production domain; the bare domain 307-redirects to it. Pointing
+ * canonicals and the sitemap at the bare domain would aim every URL at a
+ * redirect, wasting crawl budget and splitting signals across two hostnames.
+ */
+export const SITE_URL = 'https://www.chartgoldprice.com';

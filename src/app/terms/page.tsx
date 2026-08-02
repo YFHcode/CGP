@@ -16,7 +16,7 @@ export default function TermsPage() {
             breadcrumb={{ name: 'Terms of service', path: '/terms' }}
         >
             <p>
-                By using chartgoldprice.com you agree to these terms. If you do not agree, please do
+                By using www.chartgoldprice.com you agree to these terms. If you do not agree, please do
                 not use the site.
             </p>
 

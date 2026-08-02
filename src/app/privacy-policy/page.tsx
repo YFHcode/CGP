@@ -17,7 +17,7 @@ export default function PrivacyPolicyPage() {
         >
             <p>
                 This policy explains what information {SITE_NAME} collects when you visit
-                chartgoldprice.com, why it is collected, and what choices you have.
+                www.chartgoldprice.com, why it is collected, and what choices you have.
             </p>
 
             <h2>Information we collect</h2>
