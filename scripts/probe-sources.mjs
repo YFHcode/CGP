@@ -12,7 +12,9 @@
 import { appendFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import { parseStooqCsv } from './refresh-data.mjs';
+import { parseStooqCsv, parseYahooChart } from './refresh-data.mjs';
+
+const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
 const TIMEOUT_MS = 20000;
 
@@ -202,6 +204,50 @@ async function probeCsv({ name, kind, url, symbol }) {
     }
 }
 
+/**
+ * Probes a Yahoo chart endpoint through the production parser.
+ *
+ * The generic JSON extractor cannot read this shape — closes live in a bare
+ * number array under indicators.quote[0].close — so it needs its own probe.
+ */
+async function probeYahoo({ name, kind, url, symbol }) {
+    try {
+        const { res, ms } = await timedFetch(url);
+        const text = await res.text();
+
+        if (!res.ok) {
+            return { name, kind, ok: false, httpStatus: res.status, ms, note: text.slice(0, 90).replace(/\s+/g, ' ') };
+        }
+
+        let payload;
+        try {
+            payload = JSON.parse(text);
+        } catch {
+            return { name, kind, ok: false, httpStatus: res.status, ms, note: 'response was not JSON' };
+        }
+
+        const points = parseYahooChart(payload);
+        if (points.length === 0) {
+            const err = payload?.chart?.error;
+            return {
+                name, kind, ok: false, httpStatus: res.status, ms,
+                note: `parser found 0 rows${err ? ` (chart.error: ${JSON.stringify(err).slice(0, 50)})` : ''}`,
+            };
+        }
+
+        const latest = points.at(-1);
+        const verdict = assessPrice(latest.close, symbol);
+        return {
+            name, kind, ok: verdict.ok, httpStatus: res.status, ms,
+            price: latest.close,
+            note: `${points.length} rows, ${points[0].date}→${latest.date} — ${verdict.note}`,
+        };
+    } catch (error) {
+        const message = error.name === 'AbortError' ? `timeout after ${TIMEOUT_MS}ms` : String(error.message ?? error);
+        return { name, kind, ok: false, note: message.slice(0, 90) };
+    }
+}
+
 /** Generic reachability probe for sources with no price to validate. */
 async function probeReachable({ name, kind, url, headers, requiresKey, expectKey }) {
     if (requiresKey) {
@@ -238,9 +284,13 @@ async function probeReachable({ name, kind, url, headers, requiresKey, expectKey
 // ---------------------------------------------------------------------------
 
 function buildProbes() {
+    // `||` not `??`: an unset GitHub secret arrives as an empty string, which
+    // `??` passes straight through and produces a keyless request (401).
     const goldKey = process.env.GOLD_API_KEY || 'goldapi-n4hsmi9298tt-io';
-    const serpKey = process.env.SERPAPI_KEY;
-    const currencyKey = process.env.CURRENCY_API_KEY;
+    const serpKey =
+        process.env.SERPAPI_KEY || '7bd3fa1bd4a4cbe1452cee498d65f1a4669dd235b5f021bca1e406ae917ca727';
+    const currencyKey =
+        process.env.CURRENCY_API_KEY || 'fca_live_Ik8ZCBK09jDNbxQPqYHaD6q4WyEtJqu9Qw80hoPr';
 
     return {
         /** Sources the site depends on right now. A failure here is actionable. */
@@ -260,28 +310,30 @@ function buildProbes() {
                 }),
             },
             {
-                run: () => probeCsv({
-                    name: 'Stooq (XAU daily)', kind: 'history',
-                    url: 'https://stooq.com/q/d/l/?s=xauusd&i=d', symbol: 'XAU',
+                run: () => probeYahoo({
+                    name: 'Yahoo XAUUSD=X (history)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('XAUUSD=X')}?range=2y&interval=1d`,
+                    symbol: 'XAU',
                 }),
             },
             {
-                run: () => probeCsv({
-                    name: 'Stooq (XAG daily)', kind: 'history',
-                    url: 'https://stooq.com/q/d/l/?s=xagusd&i=d', symbol: 'XAG',
+                run: () => probeYahoo({
+                    name: 'Yahoo XAGUSD=X (history)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('XAGUSD=X')}?range=2y&interval=1d`,
+                    symbol: 'XAG',
                 }),
             },
             {
                 run: () => probeReachable({
                     name: 'FreeCurrencyAPI', kind: 'fx',
-                    url: `https://api.freecurrencyapi.com/v1/latest?apikey=${currencyKey ?? 'fca_live_Ik8ZCBK09jDNbxQPqYHaD6q4WyEtJqu9Qw80hoPr'}&base_currency=USD&currencies=EUR,GBP`,
+                    url: `https://api.freecurrencyapi.com/v1/latest?apikey=${currencyKey}&base_currency=USD&currencies=EUR,GBP`,
                     expectKey: 'data',
                 }),
             },
             {
                 run: () => probeReachable({
                     name: 'SerpAPI (news)', kind: 'news',
-                    url: `https://serpapi.com/search.json?api_key=${serpKey ?? '7bd3fa1bd4a4cbe1452cee498d65f1a4669dd235b5f021bca1e406ae917ca727'}&engine=google&q=gold+price+news&tbm=nws&gl=us&hl=en`,
+                    url: `https://serpapi.com/search.json?api_key=${serpKey}&engine=google&q=gold+price+news&tbm=nws&gl=us&hl=en`,
                     expectKey: 'news_results',
                 }),
             },
@@ -324,16 +376,23 @@ function buildProbes() {
                 }),
             },
             {
-                run: () => probeCsv({
-                    name: 'Stooq (XAU weekly)', kind: 'history',
-                    url: 'https://stooq.com/q/d/l/?s=xauusd&i=w', symbol: 'XAU',
+                run: () => probeYahoo({
+                    name: 'Yahoo GC=F (gold futures)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('GC=F')}?range=2y&interval=1d`,
+                    symbol: 'XAU',
                 }),
             },
             {
-                run: () => probeJson({
-                    name: 'Yahoo Finance (GC=F)', kind: 'history',
-                    url: 'https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=1mo&interval=1d',
-                    symbol: 'XAU',
+                run: () => probeYahoo({
+                    name: 'Yahoo SI=F (silver futures)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('SI=F')}?range=2y&interval=1d`,
+                    symbol: 'XAG',
+                }),
+            },
+            {
+                run: () => probeCsv({
+                    name: 'Stooq (XAU daily)', kind: 'history',
+                    url: 'https://stooq.com/q/d/l/?s=xauusd&i=d', symbol: 'XAU',
                 }),
             },
             {

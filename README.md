@@ -61,6 +61,24 @@ Measured on this repo:
 Adjust the cron in `.github/workflows/refresh-data.yml` to match your API plan's
 quota. At `0 6,18 * * *` it uses ~120 calls/month.
 
+### Sources
+
+| Kind | Primary | Fallbacks |
+| --- | --- | --- |
+| Spot price | GoldAPI.io (keyed) | gold-api.com (keyless) |
+| History | Yahoo `XAUUSD=X` / `XAGUSD=X` | Yahoo `GC=F` / `SI=F` futures, then Stooq, then today's live quote |
+| FX | FreeCurrencyAPI (keyed) | — (Frankfurter and open.er-api.com verified as keyless options) |
+| News | SerpAPI (keyed) | — |
+
+Verified from CI on 2026-08-02. Notes from that run:
+
+- **Stooq is currently broken** — it answers HTTP 200 with an HTML bot-check
+  page instead of CSV, so the parser yields zero rows and we fall through. It
+  is kept last in the chain in case it recovers.
+- **gold-api.com needs no key** and its quotes track GoldAPI closely
+  (4043.70 vs 4043.21). It carries no day range, so when it is used the
+  high/low collapse to the spot price rather than showing invented movement.
+
 ### Failure behaviour
 
 - A failed fetch **is not cached**, so one bad response cannot blank the site

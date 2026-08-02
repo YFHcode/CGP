@@ -25,7 +25,31 @@ const GOLD_API_KEY = process.env.GOLD_API_KEY || 'goldapi-n4hsmi9298tt-io';
 // Overridable so the pipeline can be exercised against a local stub.
 const GOLD_API_URL = process.env.GOLD_API_URL || 'https://www.goldapi.io/api';
 
-/** Stooq serves free daily OHLC as CSV with no key and no documented rate limit. */
+/**
+ * Keyless spot source, used as a fallback when the primary is throttled or
+ * down. Verified working from CI and its quotes track the primary closely.
+ */
+const GOLD_API_COM_URL = process.env.GOLD_API_COM_URL || 'https://api.gold-api.com/price';
+
+/**
+ * Yahoo's chart endpoint, the primary history source.
+ *
+ * `XAUUSD=X` is true spot; `GC=F` is the front-month futures contract and is
+ * used only if spot is unavailable, since futures carry a basis versus spot.
+ */
+const YAHOO_URL = process.env.YAHOO_URL || 'https://query1.finance.yahoo.com/v8/finance/chart';
+const YAHOO_SYMBOLS = {
+    XAU: ['XAUUSD=X', 'GC=F'],
+    XAG: ['XAGUSD=X', 'SI=F'],
+};
+
+/**
+ * Stooq, kept as a secondary history source.
+ *
+ * As of the last CI verification it answers 200 with an HTML bot-check page
+ * rather than CSV, so the parser correctly yields zero rows and we fall
+ * through. Left in place in case it starts working again.
+ */
 const STOOQ_URL = process.env.STOOQ_URL || 'https://stooq.com/q/d/l/';
 const STOOQ_SYMBOLS = { XAU: 'xauusd', XAG: 'xagusd' };
 
@@ -68,6 +92,44 @@ export function parseStooqCsv(text, maxPoints = MAX_HISTORY_POINTS) {
 
     points.sort((a, b) => a.date.localeCompare(b.date));
     return points.slice(-maxPoints);
+}
+
+/**
+ * Parses Yahoo Finance's chart payload into ascending [{ date, close }].
+ *
+ * Shape: chart.result[0].timestamp[] pairs positionally with
+ * chart.result[0].indicators.quote[0].close[]. Yahoo emits null closes for
+ * non-trading sessions, which must be dropped rather than charted as zero.
+ */
+export function parseYahooChart(payload, maxPoints = MAX_HISTORY_POINTS) {
+    const result = payload?.chart?.result?.[0];
+    if (!result) return [];
+
+    const timestamps = result.timestamp;
+    const closes = result.indicators?.quote?.[0]?.close;
+
+    if (!Array.isArray(timestamps) || !Array.isArray(closes)) return [];
+
+    const points = [];
+    const length = Math.min(timestamps.length, closes.length);
+
+    for (let i = 0; i < length; i += 1) {
+        const seconds = timestamps[i];
+        const close = closes[i];
+
+        if (!Number.isFinite(seconds) || !Number.isFinite(close) || close <= 0) continue;
+
+        const date = new Date(seconds * 1000).toISOString().slice(0, 10);
+        points.push({ date, close });
+    }
+
+    // Yahoo can return several intraday rows for the same session; keep the last.
+    const byDate = new Map(points.map((p) => [p.date, p.close]));
+
+    return [...byDate.entries()]
+        .map(([date, close]) => ({ date, close }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-maxPoints);
 }
 
 /**
@@ -136,7 +198,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
     }
 }
 
-async function fetchQuote(symbol) {
+async function fetchQuoteFromGoldApi(symbol) {
     const res = await fetchWithTimeout(`${GOLD_API_URL}/${symbol}/USD`, {
         headers: { 'x-access-token': GOLD_API_KEY, 'Content-Type': 'application/json' },
     });
@@ -150,7 +212,76 @@ async function fetchQuote(symbol) {
     return data;
 }
 
-async function fetchHistory(symbol) {
+/**
+ * Keyless fallback. Returns only a price, so the richer fields (day range,
+ * previous close, per-karat grams) are derived or left absent.
+ */
+async function fetchQuoteFromGoldApiCom(symbol) {
+    const res = await fetchWithTimeout(`${GOLD_API_COM_URL}/${symbol}`);
+    if (!res.ok) {
+        throw new Error(`gold-api.com ${symbol}: ${res.status} ${res.statusText}`);
+    }
+    const data = await res.json();
+    const price = Number(data?.price);
+    if (!Number.isFinite(price) || price <= 0) {
+        throw new Error(`gold-api.com ${symbol}: response carried no usable price`);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    return {
+        timestamp: now,
+        metal: symbol,
+        currency: 'USD',
+        exchange: 'gold-api.com',
+        symbol: `${symbol}USD`,
+        // No day range from this provider: report the price rather than invent
+        // a high/low. The UI shows a flat range instead of fabricated movement.
+        prev_close_price: price,
+        open_price: price,
+        low_price: price,
+        high_price: price,
+        open_time: now,
+        price,
+        ch: 0,
+        chp: 0,
+        ask: price,
+        bid: price,
+        price_gram_24k: price / 31.1034768,
+        price_gram_22k: (price / 31.1034768) * (22 / 24),
+        price_gram_21k: (price / 31.1034768) * (21 / 24),
+        price_gram_20k: (price / 31.1034768) * (20 / 24),
+        price_gram_18k: (price / 31.1034768) * (18 / 24),
+        price_gram_16k: (price / 31.1034768) * (16 / 24),
+        price_gram_14k: (price / 31.1034768) * (14 / 24),
+        price_gram_10k: (price / 31.1034768) * (10 / 24),
+    };
+}
+
+/** Tries the primary quote source, then the keyless fallback. */
+async function fetchQuote(symbol) {
+    try {
+        return await fetchQuoteFromGoldApi(symbol);
+    } catch (error) {
+        console.warn(`[refresh] primary quote failed for ${symbol}: ${error.message ?? error}`);
+        console.warn(`[refresh] trying keyless fallback for ${symbol}...`);
+        return fetchQuoteFromGoldApiCom(symbol);
+    }
+}
+
+async function fetchYahooHistory(symbol, yahooSymbol) {
+    const url = `${YAHOO_URL}/${encodeURIComponent(yahooSymbol)}?range=2y&interval=1d`;
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) {
+        throw new Error(`Yahoo ${yahooSymbol}: ${res.status} ${res.statusText}`);
+    }
+    const points = parseYahooChart(await res.json());
+    if (points.length === 0) {
+        throw new Error(`Yahoo ${yahooSymbol}: parsed zero usable rows`);
+    }
+    return { points, source: `Yahoo Finance (${yahooSymbol})` };
+}
+
+async function fetchStooqHistory(symbol) {
     const url = `${STOOQ_URL}?s=${STOOQ_SYMBOLS[symbol]}&i=d`;
     const res = await fetchWithTimeout(url);
     if (!res.ok) {
@@ -158,9 +289,31 @@ async function fetchHistory(symbol) {
     }
     const points = parseStooqCsv(await res.text());
     if (points.length === 0) {
-        throw new Error(`Stooq ${symbol}: parsed zero usable rows`);
+        throw new Error(`Stooq ${symbol}: parsed zero usable rows (likely an HTML bot check)`);
     }
-    return points;
+    return { points, source: 'Stooq' };
+}
+
+/**
+ * Tries each history provider in order and returns the first that yields data.
+ * Ordered by data quality: Yahoo spot, Yahoo futures, then Stooq.
+ */
+async function fetchHistory(symbol) {
+    const attempts = [
+        ...YAHOO_SYMBOLS[symbol].map((y) => () => fetchYahooHistory(symbol, y)),
+        () => fetchStooqHistory(symbol),
+    ];
+
+    const errors = [];
+    for (const attempt of attempts) {
+        try {
+            return await attempt();
+        } catch (error) {
+            errors.push(String(error.message ?? error));
+        }
+    }
+
+    throw new Error(`all history sources failed for ${symbol}: ${errors.join('; ')}`);
 }
 
 async function main() {
@@ -191,11 +344,13 @@ async function main() {
 
         // --- Historical series ------------------------------------------
         try {
-            const incoming = await fetchHistory(symbol);
-            history.series[symbol] = mergeSeries(history.series[symbol], incoming);
-            history.source = 'Stooq';
+            const { points, source } = await fetchHistory(symbol);
+            history.series[symbol] = mergeSeries(history.series[symbol], points);
+            history.source = source;
             historyChanged = true;
-            console.log(`[refresh] ${symbol} history = ${history.series[symbol].length} points`);
+            console.log(
+                `[refresh] ${symbol} history = ${history.series[symbol].length} points (via ${source})`
+            );
         } catch (error) {
             failures.push(String(error.message ?? error));
             console.error(`[refresh] history failed for ${symbol}: ${error.message ?? error}`);

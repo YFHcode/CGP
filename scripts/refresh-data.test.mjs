@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     parseStooqCsv,
+    parseYahooChart,
     mergeSeries,
     isValidQuote,
     quoteToHistoryPoint,
@@ -59,6 +60,79 @@ test('parseStooqCsv keeps only the most recent maxPoints entries', () => {
     assert.equal(points.length, 3);
     assert.deepEqual(points.at(0), { date: '2024-03-08', close: 107 });
     assert.deepEqual(points.at(-1), { date: '2024-03-10', close: 109 });
+});
+
+// --- Yahoo Finance ---------------------------------------------------------
+
+/** Mirrors the real chart endpoint's shape. */
+const yahooPayload = (timestamps, closes) => ({
+    chart: {
+        result: [
+            {
+                meta: { symbol: 'XAUUSD=X', currency: 'USD' },
+                timestamp: timestamps,
+                indicators: { quote: [{ close: closes }] },
+            },
+        ],
+        error: null,
+    },
+});
+
+test('parseYahooChart pairs timestamps with closes', () => {
+    // 2024-01-02, 2024-01-03, 2024-01-04 at 00:00 UTC
+    const points = parseYahooChart(
+        yahooPayload([1704153600, 1704240000, 1704326400], [2058.98, 2042.5, 2044.3])
+    );
+    assert.deepEqual(points, [
+        { date: '2024-01-02', close: 2058.98 },
+        { date: '2024-01-03', close: 2042.5 },
+        { date: '2024-01-04', close: 2044.3 },
+    ]);
+});
+
+test('parseYahooChart drops null closes for non-trading sessions', () => {
+    // Yahoo emits null rather than omitting the row — charting it as 0 would
+    // put a false crash in the series.
+    const points = parseYahooChart(
+        yahooPayload([1704153600, 1704240000, 1704326400], [2058.98, null, 2044.3])
+    );
+    assert.equal(points.length, 2);
+    assert.deepEqual(points.map((p) => p.close), [2058.98, 2044.3]);
+});
+
+test('parseYahooChart drops non-finite and non-positive closes', () => {
+    const points = parseYahooChart(
+        yahooPayload([1704153600, 1704240000, 1704326400], [0, -12, 2044.3])
+    );
+    assert.deepEqual(points, [{ date: '2024-01-04', close: 2044.3 }]);
+});
+
+test('parseYahooChart collapses duplicate dates keeping the last', () => {
+    // Two rows inside the same UTC day.
+    const points = parseYahooChart(yahooPayload([1704153600, 1704196800], [2000, 2050]));
+    assert.deepEqual(points, [{ date: '2024-01-02', close: 2050 }]);
+});
+
+test('parseYahooChart tolerates mismatched array lengths', () => {
+    const points = parseYahooChart(yahooPayload([1704153600, 1704240000], [2058.98]));
+    assert.equal(points.length, 1);
+});
+
+test('parseYahooChart returns empty for error and malformed payloads', () => {
+    assert.deepEqual(parseYahooChart({ chart: { result: null, error: 'Not Found' } }), []);
+    assert.deepEqual(parseYahooChart({ chart: {} }), []);
+    assert.deepEqual(parseYahooChart({}), []);
+    assert.deepEqual(parseYahooChart(null), []);
+    // Missing indicators entirely.
+    assert.deepEqual(parseYahooChart({ chart: { result: [{ timestamp: [1704153600] }] } }), []);
+});
+
+test('parseYahooChart honours maxPoints, keeping the newest', () => {
+    const stamps = Array.from({ length: 10 }, (_, i) => 1704153600 + i * 86400);
+    const closes = Array.from({ length: 10 }, (_, i) => 2000 + i);
+    const points = parseYahooChart(yahooPayload(stamps, closes), 3);
+    assert.equal(points.length, 3);
+    assert.equal(points.at(-1).close, 2009);
 });
 
 test('mergeSeries unions by date and lets incoming win on conflict', () => {
