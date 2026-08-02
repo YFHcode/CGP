@@ -70,6 +70,36 @@ quota. At `0 6,18 * * *` it uses ~120 calls/month.
 - If the historical provider is unreachable, the job still appends that day's
   live quote, so the series keeps growing.
 
+## Deployment
+
+Vercel auto-deploys on every push to the production branch — no manual redeploy
+is needed.
+
+Because pages read `data/*.json` from the **deployed bundle**, fresh prices only
+go live when a new deployment is built. The refresh workflow commits the data,
+which triggers that deployment automatically:
+
+```
+scheduled workflow -> commits data/*.json -> Vercel builds -> fresh prices live
+```
+
+The refresh commit is tagged `[skip ci]`, which stops GitHub Actions from
+re-triggering on its own push. Vercel does not honour that tag (it uses the
+Ignored Build Step setting instead), so the deployment still runs — which is
+what we want. Do not "fix" this by removing the tag.
+
+### First deploy checklist
+
+1. **Settings → Actions → General → Workflow permissions** must be
+   *Read and write permissions*, otherwise the refresh job cannot push its
+   commit. The workflow's `permissions: contents: write` is capped by this
+   repository-level setting and cannot escalate past it.
+2. Run **Refresh price data** once from the Actions tab. `data/*.json` ships
+   empty, so until it runs the chart shows an empty state and prices come from
+   the slower live fallback.
+3. If the production branch is protected, allow the `github-actions[bot]` push
+   or point the workflow at an unprotected branch.
+
 ## Verifying data sources
 
 Third-party endpoints often cannot be reached from a sandboxed dev environment,
