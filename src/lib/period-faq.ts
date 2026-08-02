@@ -1,5 +1,6 @@
 import type { PeriodStats } from './history-periods';
 import { METAL_ROUTES, formatLongDate } from './history-periods';
+import type { PeriodInsights } from './period-insights';
 import type { MetalSymbol } from '@/types';
 
 /**
@@ -43,7 +44,11 @@ function direction(change: number): 'rose' | 'fell' | 'was unchanged' {
  * asks "what was the price on", a month page "how did it perform in" — rather
  * than cycling synonyms of the same question, which would read as generated.
  */
-export function periodQuestions(metal: MetalSymbol, stats: PeriodStats): PeriodQuestion[] {
+export function periodQuestions(
+    metal: MetalSymbol,
+    stats: PeriodStats,
+    insights?: PeriodInsights
+): PeriodQuestion[] {
     const name = METAL_ROUTES[metal].name;
     const lower = name.toLowerCase();
     const { period } = stats;
@@ -79,6 +84,45 @@ export function periodQuestions(metal: MetalSymbol, stats: PeriodStats): PeriodQ
                 `At ${usd(stats.close)} per troy ounce, one gram of pure ${lower} was worth about ` +
                 `${usd(stats.close / 31.1034768)} on ${label}. A troy ounce is 31.1034768 grams.`,
         });
+
+        if (insights) {
+            if (metal === 'XAU') {
+                const k18 = insights.perGramByKarat.find((k) => k.karat === '18K');
+                const k14 = insights.perGramByKarat.find((k) => k.karat === '14K');
+                if (k18 && k14) {
+                    questions.push({
+                        question: `What was 14k and 18k gold worth per gram on ${label}?`,
+                        answer:
+                            `Scrap value follows purity, so on ${label} 18k gold was worth about ` +
+                            `${usd(k18.value)} per gram and 14k about ${usd(k14.value)} per gram, ` +
+                            `against ${usd(insights.perGram)} for pure 24k. These are melt values ` +
+                            `before any dealer margin.`,
+                    });
+                }
+            }
+
+            if (insights.ratioClose !== null) {
+                questions.push({
+                    question: `What was the gold to silver ratio on ${label}?`,
+                    answer:
+                        `The gold-to-silver ratio closed at about ` +
+                        `${insights.ratioClose.toFixed(1)} on ${label}, meaning one ounce of gold ` +
+                        `was worth roughly ${insights.ratioClose.toFixed(1)} ounces of silver.`,
+                });
+            }
+
+            if (insights.yearAgoClose !== null && insights.yearAgoChangePct !== null) {
+                questions.push({
+                    question: `How did the ${lower} price on ${label} compare with a year earlier?`,
+                    answer:
+                        `A year before ${label}, ${lower} was around ` +
+                        `${usd(insights.yearAgoClose)} per troy ounce. The close of ` +
+                        `${usd(stats.close)} therefore represents a ` +
+                        `${insights.yearAgoChangePct >= 0 ? 'rise' : 'fall'} of ` +
+                        `${Math.abs(insights.yearAgoChangePct).toFixed(1)}% over twelve months.`,
+                });
+            }
+        }
 
         return questions;
     }
@@ -127,6 +171,64 @@ export function periodQuestions(metal: MetalSymbol, stats: PeriodStats): PeriodQ
                 `${usd(stats.previousClose)} and closed at ${usd(stats.close)}, a change of ` +
                 `${stats.changePct.toFixed(2)}%.`,
         });
+    }
+
+    if (insights) {
+        if (insights.upDays + insights.downDays > 0) {
+            questions.push({
+                question: `How many days did ${lower} rise in ${label}?`,
+                answer:
+                    `${name} closed higher on ${insights.upDays} ` +
+                    `${insights.upDays === 1 ? 'session' : 'sessions'} and lower on ` +
+                    `${insights.downDays} during ${label}` +
+                    (insights.bestDay && insights.worstDay
+                        ? `. The strongest session was ${formatLongDate(insights.bestDay.date)} ` +
+                          `(${insights.bestDay.pct >= 0 ? '+' : ''}${insights.bestDay.pct.toFixed(2)}%) ` +
+                          `and the weakest ${formatLongDate(insights.worstDay.date)} ` +
+                          `(${insights.worstDay.pct.toFixed(2)}%)`
+                        : '') +
+                    `.`,
+            });
+        }
+
+        questions.push({
+            question: `How volatile was ${lower} in ${label}?`,
+            answer:
+                `Daily closes in ${label} varied with a standard deviation of ` +
+                `${insights.volatilityPct.toFixed(2)}% per session, and the peak-to-trough spread ` +
+                `across the ${span} was ${insights.rangePct.toFixed(1)}% ` +
+                `(${usd(stats.low)} to ${usd(stats.high)}).`,
+        });
+
+        questions.push({
+            question: `What was the ${lower} price per gram and per kilo in ${label}?`,
+            answer:
+                `At the ${label} close of ${usd(stats.close)} per troy ounce, ${lower} worked out ` +
+                `at about ${usd(insights.perGram)} per gram and ${usd(insights.perKilo)} per ` +
+                `kilogram. A troy ounce is 31.1034768 grams.`,
+        });
+
+        if (insights.ratioAverage !== null && insights.ratioClose !== null) {
+            questions.push({
+                question: `What was the gold to silver ratio in ${label}?`,
+                answer:
+                    `The gold-to-silver ratio averaged about ${insights.ratioAverage.toFixed(1)} ` +
+                    `through ${label} and finished the ${span} near ` +
+                    `${insights.ratioClose.toFixed(1)}. A higher ratio means silver is cheap ` +
+                    `relative to gold.`,
+            });
+        }
+
+        if (insights.yearAgoClose !== null && insights.yearAgoChangePct !== null) {
+            questions.push({
+                question: `How does ${label} compare with the same period a year earlier?`,
+                answer:
+                    `${name} was around ${usd(insights.yearAgoClose)} per troy ounce twelve months ` +
+                    `before the end of ${label}. Closing at ${usd(stats.close)} makes that a ` +
+                    `${insights.yearAgoChangePct >= 0 ? 'gain' : 'decline'} of ` +
+                    `${Math.abs(insights.yearAgoChangePct).toFixed(1)}% year on year.`,
+            });
+        }
     }
 
     return questions;

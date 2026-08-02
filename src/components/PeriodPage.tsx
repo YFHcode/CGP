@@ -8,6 +8,7 @@ import { JsonLd } from './JsonLd';
 import { cn } from '@/lib/utils';
 import { breadcrumbSchema } from '@/lib/seo';
 import { periodQuestions, periodFaqSchema } from '@/lib/period-faq';
+import { computeInsights } from '@/lib/period-insights';
 import {
     METAL_ROUTES,
     adjacentPeriods,
@@ -62,7 +63,9 @@ export function PeriodPage({
 
     // Long-tail Q&A generated from the real figures. This is where search
     // intent like "what was the average gold price in March 2026" is targeted.
-    const questions = periodQuestions(metal, stats);
+    const insights = computeInsights(stats, series, otherSeries, metal);
+    const questions = periodQuestions(metal, stats, insights);
+    const pct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 
     const trail = [
         { name: `${route.name} price history`, href: route.base },
@@ -197,6 +200,140 @@ export function PeriodPage({
                             {stats.previousClose !== null ? 'vs previous close' : 'over the period'}
                         </span>
                     </div>
+                </div>
+            </section>
+
+            {/* Extended statistics. These make an otherwise formulaic page
+                carry genuinely page-specific information. */}
+            <section className="bg-zinc-900/30 py-10">
+                <div className="container mx-auto px-4">
+                    <h2 className="mb-6 text-2xl font-bold text-white">
+                        {route.name} price detail, {period.label}
+                    </h2>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="rounded-xl border border-white/10 bg-black/40 p-5">
+                            <h3 className="mb-4 font-semibold text-white">Price by weight</h3>
+                            <dl className="space-y-2 text-sm">
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-zinc-400">Per troy ounce</dt>
+                                    <dd className="font-medium text-zinc-100">{usd(stats.close)}</dd>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-zinc-400">Per gram</dt>
+                                    <dd className="font-medium text-zinc-100">{usd(insights.perGram)}</dd>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-zinc-400">Per kilogram</dt>
+                                    <dd className="font-medium text-zinc-100">{usd(insights.perKilo)}</dd>
+                                </div>
+                                {insights.ratioClose !== null && (
+                                    <div className="flex justify-between gap-4 border-t border-white/5 pt-2">
+                                        <dt className="text-zinc-400">Gold / silver ratio</dt>
+                                        <dd className="font-medium text-zinc-100">
+                                            {insights.ratioClose.toFixed(1)}
+                                        </dd>
+                                    </div>
+                                )}
+                            </dl>
+                        </div>
+
+                        {metal === 'XAU' ? (
+                            <div className="rounded-xl border border-white/10 bg-black/40 p-5">
+                                <h3 className="mb-4 font-semibold text-white">
+                                    Melt value per gram by karat
+                                </h3>
+                                <dl className="space-y-2 text-sm">
+                                    {insights.perGramByKarat.map((entry) => (
+                                        <div key={entry.karat} className="flex justify-between gap-4">
+                                            <dt className="text-zinc-400">
+                                                {entry.karat}
+                                                <span className="ml-2 text-xs text-zinc-500">
+                                                    {(entry.purity * 100).toFixed(1)}%
+                                                </span>
+                                            </dt>
+                                            <dd className="font-medium text-zinc-100">
+                                                {usd(entry.value)}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                                <p className="mt-3 text-xs text-zinc-400">
+                                    Metal value only, before dealer margins and fabrication.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="rounded-xl border border-white/10 bg-black/40 p-5">
+                                <h3 className="mb-4 font-semibold text-white">Session summary</h3>
+                                <dl className="space-y-2 text-sm">
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-zinc-400">Higher closes</dt>
+                                        <dd className="font-medium text-green-300">{insights.upDays}</dd>
+                                    </div>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-zinc-400">Lower closes</dt>
+                                        <dd className="font-medium text-red-300">{insights.downDays}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        )}
+                    </div>
+
+                    {!isSingleDay && (
+                        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            {[
+                                { label: 'Higher closes', value: String(insights.upDays) },
+                                { label: 'Lower closes', value: String(insights.downDays) },
+                                {
+                                    label: 'Peak-to-trough range',
+                                    value: `${insights.rangePct.toFixed(1)}%`,
+                                },
+                                {
+                                    label: 'Daily volatility',
+                                    value: `${insights.volatilityPct.toFixed(2)}%`,
+                                },
+                            ].map((item) => (
+                                <div
+                                    key={item.label}
+                                    className="rounded-xl border border-white/10 bg-black/40 p-4"
+                                >
+                                    <dt className="text-xs text-zinc-400">{item.label}</dt>
+                                    <dd className="mt-1 text-lg font-bold text-white">{item.value}</dd>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {(insights.bestDay || insights.yearAgoClose !== null) && (
+                        <div className="mt-6 space-y-2 text-sm text-zinc-300">
+                            {insights.bestDay && insights.worstDay && !isSingleDay && (
+                                <p>
+                                    The strongest session of {period.label} was{' '}
+                                    <Link
+                                        href={`${route.base}/${slugForKey(insights.bestDay.date, 'day')}`}
+                                        className="text-gold-400 hover:text-gold-300"
+                                    >
+                                        {formatLongDate(insights.bestDay.date)}
+                                    </Link>{' '}
+                                    at {pct(insights.bestDay.pct)}, and the weakest{' '}
+                                    <Link
+                                        href={`${route.base}/${slugForKey(insights.worstDay.date, 'day')}`}
+                                        className="text-gold-400 hover:text-gold-300"
+                                    >
+                                        {formatLongDate(insights.worstDay.date)}
+                                    </Link>{' '}
+                                    at {pct(insights.worstDay.pct)}.
+                                </p>
+                            )}
+                            {insights.yearAgoClose !== null && insights.yearAgoChangePct !== null && (
+                                <p>
+                                    Twelve months earlier {name} traded around{' '}
+                                    {usd(insights.yearAgoClose)}, making this a{' '}
+                                    {pct(insights.yearAgoChangePct)} move year on year.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </section>
 
