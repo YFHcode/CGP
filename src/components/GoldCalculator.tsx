@@ -17,11 +17,17 @@ import { formatCurrency, formatMetalPrice } from '@/lib/currencies';
 import { ToggleGroup } from './UnitToggle';
 
 interface GoldCalculatorProps {
-    /** Spot gold price per troy ounce, in USD. */
+    /** Spot price per troy ounce, in USD. */
     goldPricePerOz: number;
+    /**
+     * Which metal is being valued. Silver is not sold by karat, so the purity
+     * selector is hidden and the value is computed at full purity.
+     */
+    metal?: 'gold' | 'silver';
 }
 
-export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
+export function GoldCalculator({ goldPricePerOz, metal = 'gold' }: GoldCalculatorProps) {
+    const isGold = metal === 'gold';
     const [weight, setWeight] = useState('1');
     const [unit, setUnit] = useState<WeightUnit>('oz');
     const [karat, setKarat] = useState<Karat>('24K');
@@ -36,7 +42,7 @@ export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
     const isInvalid = !isBlank && (!Number.isFinite(parsed) || parsed < 0);
     const weightNum = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 
-    const valueUSD = calculateGoldValue(goldPricePerOz, weightNum, unit, karat);
+    const valueUSD = calculateGoldValue(goldPricePerOz, weightNum, unit, isGold ? karat : '24K');
 
     const converted = convertPrice(valueUSD);
     const usingFallback = converted === null;
@@ -53,7 +59,9 @@ export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
         <div className="mx-auto max-w-2xl rounded-xl border border-white/10 bg-zinc-900/50 p-6 backdrop-blur-sm">
             <div className="mb-6 flex items-center gap-2">
                 <Calculator className="h-5 w-5 text-gold-400" aria-hidden="true" />
-                <h2 className="text-xl font-bold text-white">Gold Value Calculator</h2>
+                <h2 className="text-xl font-bold text-white">
+                    {isGold ? 'Gold' : 'Silver'} Value Calculator
+                </h2>
             </div>
 
             <div className="space-y-5">
@@ -93,17 +101,21 @@ export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
                     )}
                 </div>
 
-                <div>
-                    <span className="mb-2 block text-sm font-medium text-zinc-300">Purity (karat)</span>
-                    <ToggleGroup
-                        label="Gold purity in karat"
-                        options={KARATS}
-                        value={karat}
-                        onChange={setKarat}
-                        renderHint={(k) => `${(KARAT_PURITY[k] * 100).toFixed(1)}%`}
-                        className="grid grid-cols-3 gap-2 bg-transparent p-0 sm:grid-cols-6"
-                    />
-                </div>
+                {isGold && (
+                    <div>
+                        <span className="mb-2 block text-sm font-medium text-zinc-300">
+                            Purity (karat)
+                        </span>
+                        <ToggleGroup
+                            label="Gold purity in karat"
+                            options={KARATS}
+                            value={karat}
+                            onChange={setKarat}
+                            renderHint={(k) => `${(KARAT_PURITY[k] * 100).toFixed(1)}%`}
+                            className="grid grid-cols-3 gap-2 bg-transparent p-0 sm:grid-cols-6"
+                        />
+                    </div>
+                )}
 
                 <div
                     className="rounded-lg border border-gold-500/20 bg-gradient-to-br from-gold-500/10 to-gold-600/10 p-4"

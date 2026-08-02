@@ -11,6 +11,7 @@ import type {
     PriceSnapshot,
 } from '@/types';
 import { getMetalPrice } from './gold-api';
+import { getExchangeRates } from './currency-api';
 
 const DATA_DIR = join(process.cwd(), 'data');
 
@@ -150,3 +151,43 @@ export function groupArchiveByMonth(items: NewsArchiveEntry[]): Map<string, News
     }
     return byMonth;
 }
+
+export interface RatesSnapshot {
+    updatedAt: string | null;
+    base: string;
+    rates: Record<string, number>;
+}
+
+/**
+ * Exchange rates from the committed snapshot, falling back to a live call.
+ *
+ * Read on the server so per-currency pages carry real converted figures in
+ * their HTML; client-side conversion alone would leave crawlers with nothing.
+ *
+ * The fallback matters because those pages 404 without a rate — on a fresh
+ * clone, or before the first scheduled refresh, the sitemap would otherwise
+ * advertise a dozen dead URLs.
+ */
+export const getRates = cache(async (): Promise<RatesSnapshot> => {
+    const snapshot = await readSnapshot<RatesSnapshot>('rates.json', {
+        updatedAt: null,
+        base: 'USD',
+        rates: {},
+    });
+
+    const stored = snapshot.rates ?? {};
+    if (Object.keys(stored).length > 0) {
+        return {
+            updatedAt: snapshot.updatedAt ?? null,
+            base: snapshot.base ?? 'USD',
+            rates: { USD: 1, ...stored },
+        };
+    }
+
+    const live = await getExchangeRates();
+    return {
+        updatedAt: live ? new Date().toISOString() : null,
+        base: 'USD',
+        rates: { USD: 1, ...(live ?? {}) },
+    };
+});

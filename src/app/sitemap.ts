@@ -4,6 +4,8 @@ import { SITE_URL } from '@/lib/navigation';
 import { getHistory, getNewsArchive, groupArchiveByMonth } from '@/lib/prices';
 import { listPeriods, slugForKey } from '@/lib/history-periods';
 import { notableDaySet } from '@/lib/notable-days';
+import { CURRENCY_PAGES } from '@/lib/currency-pages';
+import { UNIT_PAGES } from '@/lib/unit-pages';
 
 /**
  * Sitemap including blog posts, which were previously omitted entirely.
@@ -18,6 +20,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${SITE_URL}/gold-price-today`, changeFrequency: 'daily', priority: 0.95 },
         { url: `${SITE_URL}/silver-price-today`, changeFrequency: 'daily', priority: 0.95 },
         { url: `${SITE_URL}/gold-price-calculator`, changeFrequency: 'weekly', priority: 0.9 },
+        { url: `${SITE_URL}/silver-price-calculator`, changeFrequency: 'weekly', priority: 0.85 },
+        { url: `${SITE_URL}/gold-to-silver-ratio`, changeFrequency: 'daily', priority: 0.85 },
         { url: `${SITE_URL}/charts/gold`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/charts/silver`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/gold-price-history`, changeFrequency: 'daily', priority: 0.85 },
@@ -78,6 +82,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         })),
     ]);
 
+    const topicRoutes: MetadataRoute.Sitemap = [
+        ...UNIT_PAGES.map((page) => ({
+            url: `${SITE_URL}/gold-price-per/${page.slug}`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.85,
+        })),
+        ...CURRENCY_PAGES.map((page) => ({
+            url: `${SITE_URL}/gold-price-in/${page.slug}`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.85,
+        })),
+    ];
+
     const { items } = await getNewsArchive();
     const newsRoutes: MetadataRoute.Sitemap = [...groupArchiveByMonth(items).keys()].map(
         (month) => ({
@@ -88,5 +107,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         })
     );
 
-    return [...staticRoutes, ...postRoutes, ...archiveRoutes, ...newsRoutes];
+    return [...staticRoutes, ...topicRoutes, ...postRoutes, ...archiveRoutes, ...newsRoutes];
 }

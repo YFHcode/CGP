@@ -93,6 +93,31 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         label: 'Silver price chart',
         description: 'Interactive XAG chart with the day range and gold-to-silver ratio.',
     },
+    ratio: {
+        href: '/gold-to-silver-ratio',
+        label: 'Gold to silver ratio',
+        description: 'How many ounces of silver buy one ounce of gold, with its range and average.',
+    },
+    perGram: {
+        href: '/gold-price-per/gram',
+        label: 'Gold price per gram',
+        description: 'The gram price jewellers and scrap buyers quote from, broken down by karat.',
+    },
+    perOunce: {
+        href: '/gold-price-per/ounce',
+        label: 'Gold price per ounce',
+        description: 'The troy ounce price bullion coins and bars are sold by.',
+    },
+    silverCalculator: {
+        href: '/silver-price-calculator',
+        label: 'Silver value calculator',
+        description: 'Value silver by weight and fineness, from sterling to fine bullion.',
+    },
+    goldInInr: {
+        href: '/gold-price-in/inr',
+        label: 'Gold price in INR',
+        description: 'Gold in Indian rupees per gram, tola and 10 grams, with karat rates.',
+    },
     goldArchive: {
         href: '/gold-price',
         label: 'Gold price archive',

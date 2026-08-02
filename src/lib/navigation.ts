@@ -16,6 +16,16 @@ export const MAIN_NAV: NavLink[] = [
     { href: '/blog', label: 'Blog' },
 ];
 
+/** Topic pages, linked from the footer so crawlers always reach them. */
+export const TOOLS_NAV: NavLink[] = [
+    { href: '/gold-price-per/gram', label: 'Gold price per gram' },
+    { href: '/gold-price-per/ounce', label: 'Gold price per ounce' },
+    { href: '/gold-to-silver-ratio', label: 'Gold to silver ratio' },
+    { href: '/silver-price-calculator', label: 'Silver calculator' },
+    { href: '/gold-price-in/inr', label: 'Gold price in INR' },
+    { href: '/gold-price-in/eur', label: 'Gold price in EUR' },
+];
+
 /** Archive hubs, linked from the footer so crawlers always reach them. */
 export const ARCHIVE_NAV: NavLink[] = [
     { href: '/gold-price', label: 'Gold price archive' },

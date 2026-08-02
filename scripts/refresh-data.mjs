@@ -21,6 +21,7 @@ const DATA_DIR = join(ROOT, 'data');
 const PRICES_FILE = join(DATA_DIR, 'prices.json');
 const HISTORY_FILE = join(DATA_DIR, 'history.json');
 const NEWS_FILE = join(DATA_DIR, 'news-archive.json');
+const RATES_FILE = join(DATA_DIR, 'rates.json');
 
 const GOLD_API_KEY = process.env.GOLD_API_KEY || 'goldapi-n4hsmi9298tt-io';
 // Overridable so the pipeline can be exercised against a local stub.
@@ -83,6 +84,16 @@ const SERPAPI_KEY =
 
 /** Cap on archived headlines. Roughly two years at 10 per run, twice a day. */
 const MAX_NEWS_ITEMS = 5000;
+
+/**
+ * Exchange rates, stored so per-currency pages can be rendered on the server.
+ * Client-side conversion alone would leave the prices out of the HTML, which is
+ * exactly what a crawler reads.
+ */
+const CURRENCY_URL = process.env.CURRENCY_URL || 'https://api.freecurrencyapi.com/v1/latest';
+const CURRENCY_API_KEY =
+    process.env.CURRENCY_API_KEY || 'fca_live_Ik8ZCBK09jDNbxQPqYHaD6q4WyEtJqu9Qw80hoPr';
+const RATE_CURRENCIES = ['EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR'];
 
 const SYMBOLS = ['XAU', 'XAG'];
 
@@ -401,6 +412,37 @@ async function fetchHistory(symbol) {
     throw new Error(`all history sources failed for ${symbol}: ${errors.join('; ')}`);
 }
 
+/** Fetches USD-based exchange rates for the currencies the site offers. */
+async function fetchRates() {
+    const params = new URLSearchParams({
+        apikey: CURRENCY_API_KEY,
+        base_currency: 'USD',
+        currencies: RATE_CURRENCIES.join(','),
+    });
+
+    const res = await fetchWithTimeout(`${CURRENCY_URL}?${params.toString()}`);
+    if (!res.ok) {
+        throw new Error(`CurrencyAPI: ${res.status} ${res.statusText}`);
+    }
+
+    const body = await res.json();
+    const raw = body?.data;
+    if (!raw || typeof raw !== 'object') {
+        throw new Error('CurrencyAPI: response carried no rates');
+    }
+
+    const clean = { USD: 1 };
+    for (const [code, value] of Object.entries(raw)) {
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+            clean[code] = value;
+        }
+    }
+    if (Object.keys(clean).length <= 1) {
+        throw new Error('CurrencyAPI: no usable rates in response');
+    }
+    return clean;
+}
+
 /** Fetches current headlines. Only link metadata is retained. */
 async function fetchNews() {
     const params = new URLSearchParams({
@@ -432,6 +474,7 @@ async function main() {
     const prices = await readJson(PRICES_FILE, { updatedAt: null, metals: {} });
     const history = await readJson(HISTORY_FILE, { updatedAt: null, source: null, series: {} });
     const newsArchive = await readJson(NEWS_FILE, { updatedAt: null, items: [] });
+    const rates = await readJson(RATES_FILE, { updatedAt: null, base: 'USD', rates: {} });
 
     prices.metals ??= {};
     history.series ??= {};
@@ -478,6 +521,23 @@ async function main() {
         }
     }
 
+    // --- Exchange rates --------------------------------------------------
+    let ratesChanged = false;
+    try {
+        rates.rates = await fetchRates();
+        rates.base = 'USD';
+        ratesChanged = true;
+        console.log(`[refresh] rates: ${Object.keys(rates.rates).length} currencies`);
+    } catch (error) {
+        failures.push(String(error.message ?? error));
+        console.error(`[refresh] rates failed: ${error.message ?? error}`);
+    }
+
+    if (ratesChanged) {
+        rates.updatedAt = new Date().toISOString();
+        await writeFile(RATES_FILE, JSON.stringify(rates, null, 2) + '\n');
+    }
+
     // --- News archive (link index only) ---------------------------------
     let newsChanged = false;
     try {
@@ -506,7 +566,7 @@ async function main() {
         await writeFile(HISTORY_FILE, JSON.stringify(history, null, 2) + '\n');
     }
 
-    if (!pricesChanged && !historyChanged && !newsChanged) {
+    if (!pricesChanged && !historyChanged && !newsChanged && !ratesChanged) {
         // Nothing was refreshed at all — surface it so the scheduled run goes red.
         console.error('[refresh] every source failed; existing data left untouched');
         process.exitCode = 1;
