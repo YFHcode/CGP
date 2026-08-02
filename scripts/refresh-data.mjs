@@ -34,13 +34,18 @@ const GOLD_API_COM_URL = process.env.GOLD_API_COM_URL || 'https://api.gold-api.c
 /**
  * Yahoo's chart endpoint, the primary history source.
  *
- * `XAUUSD=X` is true spot; `GC=F` is the front-month futures contract and is
- * used only if spot is unavailable, since futures carry a basis versus spot.
+ * COMEX front-month futures (GC=F, SI=F) — verified in CI as returning ~502
+ * daily closes over two years. The spot FX symbols XAUUSD=X / XAGUSD=X were
+ * tried first but Yahoo answers 404 "symbol may be delisted" for both, so they
+ * are not used.
+ *
+ * Futures carry a small basis versus spot (about 1.5% for gold at the time of
+ * writing), so the chart is labelled as futures rather than presented as spot.
  */
 const YAHOO_URL = process.env.YAHOO_URL || 'https://query1.finance.yahoo.com/v8/finance/chart';
 const YAHOO_SYMBOLS = {
-    XAU: ['XAUUSD=X', 'GC=F'],
-    XAG: ['XAGUSD=X', 'SI=F'],
+    XAU: ['GC=F'],
+    XAG: ['SI=F'],
 };
 
 /**
@@ -278,7 +283,9 @@ async function fetchYahooHistory(symbol, yahooSymbol) {
     if (points.length === 0) {
         throw new Error(`Yahoo ${yahooSymbol}: parsed zero usable rows`);
     }
-    return { points, source: `Yahoo Finance (${yahooSymbol})` };
+    // Named so the UI can say what the series actually is, rather than implying
+    // these are spot prices.
+    return { points, source: 'Yahoo Finance (COMEX futures)' };
 }
 
 async function fetchStooqHistory(symbol) {

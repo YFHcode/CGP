@@ -230,6 +230,12 @@ export function PriceChart({
                         {currency !== activeCurrency
                             ? ` · ${currency} rates unavailable, showing ${activeCurrency}`
                             : ''}
+                        {/* Futures settle at a small premium to spot, so the last
+                            point here will not exactly match the spot price shown
+                            above. Say so rather than let it look like an error. */}
+                        {source?.includes('futures') && (
+                            <> · Futures settle at a small premium to spot prices</>
+                        )}
                     </p>
                 )}
             </div>

@@ -311,15 +311,15 @@ function buildProbes() {
             },
             {
                 run: () => probeYahoo({
-                    name: 'Yahoo XAUUSD=X (history)', kind: 'history',
-                    url: `${YAHOO}/${encodeURIComponent('XAUUSD=X')}?range=2y&interval=1d`,
+                    name: 'Yahoo GC=F (gold history)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('GC=F')}?range=2y&interval=1d`,
                     symbol: 'XAU',
                 }),
             },
             {
                 run: () => probeYahoo({
-                    name: 'Yahoo XAGUSD=X (history)', kind: 'history',
-                    url: `${YAHOO}/${encodeURIComponent('XAGUSD=X')}?range=2y&interval=1d`,
+                    name: 'Yahoo SI=F (silver history)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('SI=F')}?range=2y&interval=1d`,
                     symbol: 'XAG',
                 }),
             },
@@ -376,17 +376,12 @@ function buildProbes() {
                 }),
             },
             {
+                // Confirmed 404 "symbol may be delisted"; kept so we notice if
+                // Yahoo ever starts serving true spot.
                 run: () => probeYahoo({
-                    name: 'Yahoo GC=F (gold futures)', kind: 'history',
-                    url: `${YAHOO}/${encodeURIComponent('GC=F')}?range=2y&interval=1d`,
+                    name: 'Yahoo XAUUSD=X (spot)', kind: 'history',
+                    url: `${YAHOO}/${encodeURIComponent('XAUUSD=X')}?range=2y&interval=1d`,
                     symbol: 'XAU',
-                }),
-            },
-            {
-                run: () => probeYahoo({
-                    name: 'Yahoo SI=F (silver futures)', kind: 'history',
-                    url: `${YAHOO}/${encodeURIComponent('SI=F')}?range=2y&interval=1d`,
-                    symbol: 'XAG',
                 }),
             },
             {
