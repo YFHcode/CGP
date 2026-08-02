@@ -78,6 +78,10 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
+          # [skip ci] stops GitHub Actions re-triggering on this push. Vercel
+          # does NOT honour it (it uses the Ignored Build Step setting), so the
+          # deployment that publishes the fresh prices still runs — which is
+          # required, because pages read data/*.json from the deployed bundle.
           git commit -m "chore(data): refresh prices and history [skip ci]"
           # Rebase before pushing so a concurrent push doesn't fail the run.
           for attempt in 1 2 3; do
