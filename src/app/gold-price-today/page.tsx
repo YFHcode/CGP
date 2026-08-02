@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { Hero } from '@/components/Hero';
-import { PriceChart } from '@/components/PriceChart';
+import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { NewsSection } from '@/components/NewsSection';
 import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -35,7 +35,7 @@ export default async function GoldPriceTodayPage() {
       />
 
       {/* Gold-first history so this page isn't a duplicate of the silver one. */}
-      <PriceChart
+      <LazyPriceChart
         gold={history.gold}
         silver={history.silver}
         source={history.source}

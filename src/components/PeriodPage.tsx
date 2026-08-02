@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-import { PriceChart } from './PriceChart';
+import { LazyPriceChart } from './LazyPriceChart';
 import { Breadcrumbs } from './Breadcrumbs';
 import { RelatedLinks, relatedLinks } from './RelatedLinks';
 import { JsonLd } from './JsonLd';
@@ -339,7 +339,7 @@ export function PeriodPage({
 
             {/* Only chart multi-point periods; a single day is one dot. */}
             {stats.points.length > 1 && (
-                <PriceChart
+                <LazyPriceChart
                     gold={metal === 'XAU' ? stats.points : otherSeries}
                     silver={metal === 'XAG' ? stats.points : otherSeries}
                     source={source}

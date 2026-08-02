@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 
-import { PriceChart } from '@/components/PriceChart';
+import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { AnalysisSection } from '@/components/AnalysisSection';
 import { LastUpdated } from '@/components/LastUpdated';
 import { JsonLd } from '@/components/JsonLd';
@@ -97,7 +97,7 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                 </div>
             </section>
 
-            <PriceChart
+            <LazyPriceChart
                 gold={history.gold}
                 silver={history.silver}
                 source={history.source}

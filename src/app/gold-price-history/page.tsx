@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Calendar } from 'lucide-react';
 
-import { PriceChart } from '@/components/PriceChart';
+import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
@@ -60,7 +60,7 @@ export default async function GoldPriceHistoryPage() {
         </div>
       </section>
 
-      <PriceChart
+      <LazyPriceChart
         gold={history.gold}
         silver={history.silver}
         source={history.source}

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { Hero } from '@/components/Hero';
-import { PriceChart } from '@/components/PriceChart';
+import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { NewsSection } from '@/components/NewsSection';
 import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -34,7 +34,7 @@ export default async function SilverPriceTodayPage() {
       />
 
       {/* Silver-first, and locked, so this page leads with its own metal. */}
-      <PriceChart
+      <LazyPriceChart
         gold={history.gold}
         silver={history.silver}
         source={history.source}

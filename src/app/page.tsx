@@ -1,5 +1,5 @@
 import { Hero } from '@/components/Hero';
-import { PriceChart } from '@/components/PriceChart';
+import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { NewsSection } from '@/components/NewsSection';
 import { AnalysisSection } from '@/components/AnalysisSection';
 import { GoldCalculator } from '@/components/GoldCalculator';
@@ -46,7 +46,7 @@ export default async function Home() {
         subheading="Spot prices in eight currencies, with historical charts, the gold-to-silver ratio and a karat value calculator."
       />
 
-      <PriceChart
+      <LazyPriceChart
         gold={history.gold}
         silver={history.silver}
         source={history.source}
