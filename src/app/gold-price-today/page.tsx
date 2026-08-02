@@ -4,6 +4,8 @@ import { Hero } from '@/components/Hero';
 import { PriceChart } from '@/components/PriceChart';
 import { NewsSection } from '@/components/NewsSection';
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
@@ -22,6 +24,7 @@ export default async function GoldPriceTodayPage() {
   return (
     <>
       <JsonLd schema={breadcrumbSchema([{ name: 'Gold price today', path: '/gold-price-today' }])} />
+      <Breadcrumbs trail={[{ name: 'Gold price today', href: '/gold-price-today' }]} />
 
       <Hero
         goldData={gold}
@@ -87,6 +90,10 @@ export default async function GoldPriceTodayPage() {
       </section>
 
       <NewsSection />
+
+      <RelatedLinks
+        links={relatedLinks('goldChart', 'calculator', 'history', 'silverToday', 'blog', 'news')}
+      />
     </>
   );
 }

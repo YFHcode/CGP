@@ -9,6 +9,8 @@ import { ArrowLeft, Calendar } from 'lucide-react';
 import { client } from '@/sanity/client';
 import { getBlogPost, getBlogSlugs, formatPostDate } from '@/sanity/queries';
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { breadcrumbSchema, pageMetadata, SITE_NAME, SITE_URL } from '@/lib/seo';
 
 const { projectId, dataset } = client.config();
@@ -90,6 +92,13 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                 ]}
             />
 
+            <Breadcrumbs
+                trail={[
+                    { name: 'Blog', href: '/blog' },
+                    { name: post.title, href: `/blog/${slug}` },
+                ]}
+            />
+
             <article className="container mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8">
                 <Link
                     href="/blog"
@@ -123,6 +132,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                     {Array.isArray(post.body) && <PortableText value={post.body} />}
                 </div>
             </article>
+
+            <RelatedLinks
+                title="Check live prices"
+                links={relatedLinks('goldToday', 'silverToday', 'calculator', 'history', 'goldChart', 'blog')}
+            />
         </>
     );
 }

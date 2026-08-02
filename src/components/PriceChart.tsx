@@ -16,13 +16,15 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { formatMetalPrice } from '@/lib/currencies';
 import type { HistoryPoint, MetalSymbol } from '@/types';
 
-type TimeRange = '1W' | '1M' | '6M' | '1Y';
+type TimeRange = '1W' | '1M' | '6M' | '1Y' | 'MAX';
 
-const RANGE_DAYS: Record<TimeRange, number> = {
+/** Trailing window in days. `null` means every point we hold. */
+const RANGE_DAYS: Record<TimeRange, number | null> = {
     '1W': 7,
     '1M': 30,
     '6M': 180,
     '1Y': 365,
+    MAX: null,
 };
 
 const RANGES = Object.keys(RANGE_DAYS) as TimeRange[];
@@ -43,7 +45,10 @@ interface PriceChartProps {
 function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
     if (points.length === 0) return [];
 
-    const cutoff = Date.now() - RANGE_DAYS[range] * 24 * 60 * 60 * 1000;
+    const days = RANGE_DAYS[range];
+    if (days === null) return points; // MAX — everything we hold
+
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     const windowed = points.filter((point) => {
         const time = new Date(point.date).getTime();
         return Number.isFinite(time) && time >= cutoff;
@@ -51,7 +56,7 @@ function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
 
     // A sparse series (e.g. only a few accumulated snapshots) would render as an
     // empty chart; fall back to the tail so something meaningful still shows.
-    return windowed.length >= 2 ? windowed : points.slice(-RANGE_DAYS[range]);
+    return windowed.length >= 2 ? windowed : points.slice(-days);
 }
 
 export function PriceChart({
@@ -69,12 +74,19 @@ export function PriceChart({
     const series = activeMetal === 'gold' ? gold : silver;
 
     const data = useMemo(() => {
-        return sliceRange(series, timeRange).map((point) => ({
+        const sliced = sliceRange(series, timeRange);
+        // Day-level labels are unreadable across years, so long ranges switch to
+        // month + year.
+        const isLongRange = timeRange === 'MAX' || timeRange === '1Y' || timeRange === '6M';
+
+        return sliced.map((point) => ({
             date: point.date,
-            label: new Date(point.date).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-            }),
+            label: new Date(point.date).toLocaleDateString(
+                'en-US',
+                isLongRange
+                    ? { month: 'short', year: 'numeric' }
+                    : { month: 'short', day: 'numeric' }
+            ),
             // Fall back to the USD close when no rate is available, matching the
             // currency label rendered below.
             price: convertPrice(point.close) ?? point.close,
@@ -135,9 +147,10 @@ export function PriceChart({
                                     type="button"
                                     role="radio"
                                     aria-checked={timeRange === range}
+                                    aria-label={range === 'MAX' ? 'All available history' : range}
                                     onClick={() => setTimeRange(range)}
                                     className={cn(
-                                        'rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+                                        'rounded-md px-2.5 py-1.5 text-xs font-medium transition-all sm:px-3',
                                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400',
                                         timeRange === range
                                             ? 'bg-zinc-700 text-white'

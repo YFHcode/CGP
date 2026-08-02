@@ -1,6 +1,8 @@
 import { GoldCalculator } from '@/components/GoldCalculator';
 import { LastUpdated } from '@/components/LastUpdated';
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { KARAT_PURITY } from '@/lib/conversions';
@@ -60,6 +62,8 @@ export default async function GoldCalculatorPage() {
           },
         ]}
       />
+
+      <Breadcrumbs trail={[{ name: 'Gold price calculator', href: '/gold-price-calculator' }]} />
 
       <section className="bg-zinc-900/50 py-12">
         <div className="container mx-auto px-4">
@@ -131,6 +135,10 @@ export default async function GoldCalculatorPage() {
           </p>
         </div>
       </section>
+
+      <RelatedLinks
+        links={relatedLinks('goldToday', 'history', 'goldChart', 'silverToday', 'blog', 'home')}
+      />
     </>
   );
 }

@@ -4,6 +4,8 @@ import { PriceChart } from '@/components/PriceChart';
 import { AnalysisSection } from '@/components/AnalysisSection';
 import { LastUpdated } from '@/components/LastUpdated';
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { formatMetalPrice } from '@/lib/currencies';
@@ -76,6 +78,10 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                 ])}
             />
 
+            <Breadcrumbs
+                trail={[{ name: `${chart.name} chart`, href: `/charts/${slug}` }]}
+            />
+
             <section className="bg-zinc-900/50 py-12">
                 <div className="container mx-auto px-4 text-center">
                     <h1 className="mb-4 text-4xl font-bold text-white">{chart.title}</h1>
@@ -101,6 +107,14 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
             />
 
             <AnalysisSection gold={gold} silver={silver} />
+
+            <RelatedLinks
+                links={
+                    slug === 'gold'
+                        ? relatedLinks('goldToday', 'calculator', 'history', 'silverChart', 'news', 'blog')
+                        : relatedLinks('silverToday', 'goldChart', 'calculator', 'history', 'news', 'blog')
+                }
+            />
         </>
     );
 }

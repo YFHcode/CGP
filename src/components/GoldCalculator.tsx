@@ -61,7 +61,9 @@ export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
                     <label htmlFor={weightId} className="mb-2 block text-sm font-medium text-zinc-300">
                         Weight
                     </label>
-                    <div className="flex gap-2">
+                    {/* Stacked on narrow screens: side by side, the input plus a
+                        three-option toggle overflowed the card off-screen. */}
+                    <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                             id={weightId}
                             type="number"
@@ -72,7 +74,7 @@ export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
                             step="0.01"
                             aria-invalid={isInvalid}
                             aria-describedby={isInvalid ? `${weightId}-error` : undefined}
-                            className="flex-1 rounded-lg border border-white/10 bg-zinc-800 px-4 py-2 text-white placeholder-zinc-400 focus:border-gold-400 focus:outline-none focus:ring-1 focus:ring-gold-400"
+                            className="w-full min-w-0 rounded-lg border border-white/10 bg-zinc-800 px-4 py-2 text-white placeholder-zinc-400 focus:border-gold-400 focus:outline-none focus:ring-1 focus:ring-gold-400 sm:flex-1"
                             placeholder="Enter weight"
                         />
                         <ToggleGroup
@@ -81,7 +83,7 @@ export function GoldCalculator({ goldPricePerOz }: GoldCalculatorProps) {
                             value={unit}
                             onChange={setUnit}
                             size="sm"
-                            className="shrink-0"
+                            className="w-full sm:w-auto sm:shrink-0"
                         />
                     </div>
                     {isInvalid && (

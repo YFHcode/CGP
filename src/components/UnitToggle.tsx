@@ -33,7 +33,9 @@ export function ToggleGroup<T extends string>({
         <div
             role="radiogroup"
             aria-label={label}
-            className={cn('flex gap-1 rounded-lg bg-zinc-800/60 p-1', className)}
+            // min-w-0 lets the group shrink inside a flex row instead of forcing
+            // its parent wider and pushing options off-screen.
+            className={cn('flex min-w-0 gap-1 rounded-lg bg-zinc-800/60 p-1', className)}
         >
             {options.map((option) => {
                 const isSelected = option === value;
@@ -57,9 +59,9 @@ export function ToggleGroup<T extends string>({
                             onChange(next);
                         }}
                         className={cn(
-                            'flex-1 rounded-md font-medium transition-all',
+                            'min-w-0 flex-1 truncate rounded-md font-medium transition-all',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900',
-                            size === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm',
+                            size === 'sm' ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm',
                             isSelected
                                 ? 'bg-gold-500 text-black shadow-lg'
                                 : 'text-zinc-300 hover:bg-white/5 hover:text-white'

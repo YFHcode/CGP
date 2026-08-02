@@ -2,6 +2,8 @@ import { Newspaper } from 'lucide-react';
 
 import { NewsCard } from '@/components/NewsCard';
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getNews } from '@/lib/news-api';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
@@ -19,6 +21,7 @@ export default async function NewsPage() {
     return (
         <>
             <JsonLd schema={breadcrumbSchema([{ name: 'Market news', path: '/news' }])} />
+            <Breadcrumbs trail={[{ name: 'Market news', href: '/news' }]} />
 
             <div className="bg-black py-12">
                 <div className="container mx-auto px-4">
@@ -48,6 +51,10 @@ export default async function NewsPage() {
                     )}
                 </div>
             </div>
+
+            <RelatedLinks
+                links={relatedLinks('goldToday', 'silverToday', 'history', 'calculator', 'blog', 'home')}
+            />
         </>
     );
 }

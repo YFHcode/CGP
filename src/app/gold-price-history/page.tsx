@@ -3,6 +3,8 @@ import { Calendar } from 'lucide-react';
 
 import { PriceChart } from '@/components/PriceChart';
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
@@ -43,6 +45,7 @@ export default async function GoldPriceHistoryPage() {
   return (
     <>
       <JsonLd schema={breadcrumbSchema([{ name: 'Gold price history', path: '/gold-price-history' }])} />
+      <Breadcrumbs trail={[{ name: 'Gold price history', href: '/gold-price-history' }]} />
 
       <section className="bg-zinc-900/50 py-12">
         <div className="container mx-auto px-4">
@@ -109,6 +112,10 @@ export default async function GoldPriceHistoryPage() {
           </div>
         </div>
       </section>
+
+      <RelatedLinks
+        links={relatedLinks('goldToday', 'goldChart', 'calculator', 'silverToday', 'silverChart', 'blog')}
+      />
     </>
   );
 }

@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { BookOpen, Calendar, ArrowRight } from 'lucide-react';
 
 import { JsonLd } from '@/components/JsonLd';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getBlogPosts, formatPostDate } from '@/sanity/queries';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
@@ -19,6 +21,7 @@ export default async function BlogPage() {
   return (
     <>
       <JsonLd schema={breadcrumbSchema([{ name: 'Blog', path: '/blog' }])} />
+      <Breadcrumbs trail={[{ name: 'Blog', href: '/blog' }]} />
 
       <section className="bg-zinc-900/50 py-12">
         <div className="container mx-auto px-4">
@@ -86,6 +89,11 @@ export default async function BlogPage() {
           )}
         </div>
       </section>
+
+      <RelatedLinks
+        title="Prices and tools"
+        links={relatedLinks('goldToday', 'silverToday', 'calculator', 'history', 'goldChart', 'news')}
+      />
     </>
   );
 }

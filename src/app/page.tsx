@@ -4,6 +4,7 @@ import { NewsSection } from '@/components/NewsSection';
 import { AnalysisSection } from '@/components/AnalysisSection';
 import { GoldCalculator } from '@/components/GoldCalculator';
 import { JsonLd } from '@/components/JsonLd';
+import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices, getHistory } from '@/lib/prices';
 import { faqSchema, pageMetadata } from '@/lib/seo';
 
@@ -63,6 +64,18 @@ export default async function Home() {
       )}
 
       <NewsSection />
+
+      <RelatedLinks
+        title="Prices, charts and tools"
+        links={relatedLinks(
+          'goldToday',
+          'silverToday',
+          'calculator',
+          'history',
+          'goldChart',
+          'silverChart'
+        )}
+      />
     </>
   );
 }
