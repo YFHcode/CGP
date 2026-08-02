@@ -93,6 +93,21 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         label: 'Silver price chart',
         description: 'Interactive XAG chart with the day range and gold-to-silver ratio.',
     },
+    goldArchive: {
+        href: '/gold-price',
+        label: 'Gold price archive',
+        description: 'Gold prices by year, month and day, with highs, lows and averages.',
+    },
+    silverArchive: {
+        href: '/silver-price',
+        label: 'Silver price archive',
+        description: 'Silver prices by year, month and day, with highs, lows and averages.',
+    },
+    newsArchive: {
+        href: '/news/archive',
+        label: 'News archive',
+        description: 'Dated index of gold market headlines, linking to the original publishers.',
+    },
     news: {
         href: '/news',
         label: 'Precious metals news',

@@ -7,6 +7,8 @@ import {
     mergeSeries,
     isValidQuote,
     quoteToHistoryPoint,
+    toArchiveEntry,
+    mergeNewsArchive,
 } from './refresh-data.mjs';
 
 const SAMPLE_CSV = `Date,Open,High,Low,Close,Volume
@@ -184,4 +186,76 @@ test('quoteToHistoryPoint converts a live quote into a dated point', () => {
     const point = quoteToHistoryPoint({ price: 2345.6 }, new Date('2026-08-02T10:00:00Z'));
     assert.deepEqual(point, { date: '2026-08-02', close: 2345.6 });
     assert.equal(quoteToHistoryPoint({ price: 0 }), null);
+});
+
+// --- News archive ----------------------------------------------------------
+
+test('toArchiveEntry keeps only link metadata, never article content', () => {
+    const entry = toArchiveEntry(
+        {
+            title: 'Gold hits record high',
+            link: 'https://www.reuters.com/markets/gold-record',
+            source: 'Reuters',
+            date: '2 hours ago',
+            snippet: 'Copyrighted article text that must not be stored.',
+            thumbnail: 'https://example.com/copyrighted.jpg',
+        },
+        new Date('2026-08-02T12:00:00Z')
+    );
+
+    assert.deepEqual(entry, {
+        title: 'Gold hits record high',
+        link: 'https://www.reuters.com/markets/gold-record',
+        source: 'Reuters',
+        reportedDate: '2 hours ago',
+        seenAt: '2026-08-02T12:00:00.000Z',
+    });
+    assert.equal(entry.snippet, undefined, 'snippet must not be archived');
+    assert.equal(entry.thumbnail, undefined, 'thumbnail must not be archived');
+});
+
+test('toArchiveEntry falls back to the hostname when no source is given', () => {
+    const entry = toArchiveEntry({ title: 'X', link: 'https://www.bloomberg.com/a/b' });
+    assert.equal(entry.source, 'bloomberg.com');
+});
+
+test('toArchiveEntry rejects entries it cannot link to', () => {
+    assert.equal(toArchiveEntry({ title: 'X' }), null, 'no link');
+    assert.equal(toArchiveEntry({ link: 'https://a.com' }), null, 'no title');
+    assert.equal(toArchiveEntry({ title: 'X', link: 'not a url' }), null);
+    assert.equal(toArchiveEntry({ title: '  ', link: 'https://a.com' }), null);
+    assert.equal(toArchiveEntry(null), null);
+});
+
+test('mergeNewsArchive dedupes by link across runs', () => {
+    const existing = [
+        { title: 'A', link: 'https://a.com/1', seenAt: '2026-08-01T00:00:00.000Z' },
+    ];
+    const incoming = [
+        { title: 'A (reworded headline)', link: 'https://a.com/1', seenAt: '2026-08-02T00:00:00.000Z' },
+        { title: 'B', link: 'https://b.com/2', seenAt: '2026-08-02T00:00:00.000Z' },
+    ];
+
+    const merged = mergeNewsArchive(existing, incoming);
+    assert.equal(merged.length, 2, 'the repeated story is archived once');
+    const kept = merged.find((e) => e.link === 'https://a.com/1');
+    assert.equal(kept.title, 'A', 'first sighting is kept, closest to publication');
+});
+
+test('mergeNewsArchive sorts newest first and honours the cap', () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({
+        title: `T${i}`,
+        link: `https://x.com/${i}`,
+        seenAt: `2026-08-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+    }));
+
+    const merged = mergeNewsArchive([], items, 3);
+    assert.equal(merged.length, 3);
+    assert.equal(merged[0].link, 'https://x.com/9', 'newest first');
+});
+
+test('mergeNewsArchive tolerates empty and malformed input', () => {
+    assert.deepEqual(mergeNewsArchive(), []);
+    assert.deepEqual(mergeNewsArchive([null, undefined], []), []);
+    assert.deepEqual(mergeNewsArchive([], [{ title: 'no link' }]), []);
 });

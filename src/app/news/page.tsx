@@ -53,7 +53,7 @@ export default async function NewsPage() {
             </div>
 
             <RelatedLinks
-                links={relatedLinks('goldToday', 'silverToday', 'history', 'calculator', 'blog', 'home')}
+                links={relatedLinks('newsArchive', 'goldToday', 'silverToday', 'goldArchive', 'history', 'blog')}
             />
         </>
     );

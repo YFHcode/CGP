@@ -20,6 +20,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = join(ROOT, 'data');
 const PRICES_FILE = join(DATA_DIR, 'prices.json');
 const HISTORY_FILE = join(DATA_DIR, 'history.json');
+const NEWS_FILE = join(DATA_DIR, 'news-archive.json');
 
 const GOLD_API_KEY = process.env.GOLD_API_KEY || 'goldapi-n4hsmi9298tt-io';
 // Overridable so the pipeline can be exercised against a local stub.
@@ -60,6 +61,14 @@ const STOOQ_SYMBOLS = { XAU: 'xauusd', XAG: 'xagusd' };
 
 /** Roughly five years of trading days — enough for the 1Y range with headroom. */
 const MAX_HISTORY_POINTS = 1300;
+
+/** News provider, used only to build a dated index of outbound links. */
+const NEWS_URL = process.env.NEWS_URL || 'https://serpapi.com/search.json';
+const SERPAPI_KEY =
+    process.env.SERPAPI_KEY || '7bd3fa1bd4a4cbe1452cee498d65f1a4669dd235b5f021bca1e406ae917ca727';
+
+/** Cap on archived headlines. Roughly two years at 10 per run, twice a day. */
+const MAX_NEWS_ITEMS = 5000;
 
 const SYMBOLS = ['XAU', 'XAG'];
 
@@ -170,6 +179,58 @@ export function isValidQuote(data) {
         Number.isFinite(data.price) &&
         data.price > 0
     );
+}
+
+/**
+ * Reduces a provider result to a link record.
+ *
+ * Deliberately keeps only the headline, publisher, date and URL. Snippets and
+ * thumbnails are third-party copyrighted content, and republishing them is both
+ * an infringement risk and the "scraped content" pattern Google's spam policy
+ * penalises. The archive is an index of links out, not a copy of the articles.
+ */
+export function toArchiveEntry(item, seenAt = new Date()) {
+    if (!item || typeof item.link !== 'string' || typeof item.title !== 'string') return null;
+    if (item.link.trim() === '' || item.title.trim() === '') return null;
+
+    let host;
+    try {
+        host = new URL(item.link).hostname.replace(/^www\./, '');
+    } catch {
+        return null; // Unparseable URL: not something we can link to.
+    }
+
+    return {
+        title: item.title.trim(),
+        link: item.link,
+        source: typeof item.source === 'string' && item.source ? item.source : host,
+        // The date the provider reported, kept as given; plus when we saw it,
+        // which is what the archive is actually ordered by.
+        reportedDate: typeof item.date === 'string' ? item.date : null,
+        seenAt: seenAt.toISOString(),
+    };
+}
+
+/**
+ * Merges new headlines into the archive, keyed by URL so the same story is not
+ * archived twice across runs.
+ */
+export function mergeNewsArchive(existing = [], incoming = [], maxItems = MAX_NEWS_ITEMS) {
+    const byLink = new Map();
+
+    for (const entry of existing) {
+        if (entry && typeof entry.link === 'string') byLink.set(entry.link, entry);
+    }
+    // Keep the first sighting: that is closest to publication.
+    for (const entry of incoming) {
+        if (entry && typeof entry.link === 'string' && !byLink.has(entry.link)) {
+            byLink.set(entry.link, entry);
+        }
+    }
+
+    return [...byLink.values()]
+        .sort((a, b) => String(b.seenAt).localeCompare(String(a.seenAt)))
+        .slice(0, maxItems);
 }
 
 /**
@@ -323,14 +384,41 @@ async function fetchHistory(symbol) {
     throw new Error(`all history sources failed for ${symbol}: ${errors.join('; ')}`);
 }
 
+/** Fetches current headlines. Only link metadata is retained. */
+async function fetchNews() {
+    const params = new URLSearchParams({
+        api_key: SERPAPI_KEY,
+        engine: 'google',
+        q: 'gold price news',
+        location: 'United States',
+        google_domain: 'google.com',
+        gl: 'us',
+        hl: 'en',
+        tbm: 'nws',
+    });
+
+    const res = await fetchWithTimeout(`${NEWS_URL}?${params.toString()}`);
+    if (!res.ok) {
+        throw new Error(`SerpAPI: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    const results = Array.isArray(data?.news_results) ? data.news_results : [];
+    const now = new Date();
+
+    return results.map((item) => toArchiveEntry(item, now)).filter(Boolean);
+}
+
 async function main() {
     await mkdir(DATA_DIR, { recursive: true });
 
     const prices = await readJson(PRICES_FILE, { updatedAt: null, metals: {} });
     const history = await readJson(HISTORY_FILE, { updatedAt: null, source: null, series: {} });
+    const newsArchive = await readJson(NEWS_FILE, { updatedAt: null, items: [] });
 
     prices.metals ??= {};
     history.series ??= {};
+    newsArchive.items ??= [];
 
     const failures = [];
     let pricesChanged = false;
@@ -373,6 +461,25 @@ async function main() {
         }
     }
 
+    // --- News archive (link index only) ---------------------------------
+    let newsChanged = false;
+    try {
+        const incoming = await fetchNews();
+        const before = newsArchive.items.length;
+        newsArchive.items = mergeNewsArchive(newsArchive.items, incoming);
+        const added = newsArchive.items.length - before;
+        newsChanged = added > 0;
+        console.log(`[refresh] news: ${incoming.length} fetched, ${added} new (${newsArchive.items.length} archived)`);
+    } catch (error) {
+        failures.push(String(error.message ?? error));
+        console.error(`[refresh] news failed: ${error.message ?? error}`);
+    }
+
+    if (newsChanged) {
+        newsArchive.updatedAt = new Date().toISOString();
+        await writeFile(NEWS_FILE, JSON.stringify(newsArchive, null, 2) + '\n');
+    }
+
     if (pricesChanged) {
         prices.updatedAt = new Date().toISOString();
         await writeFile(PRICES_FILE, JSON.stringify(prices, null, 2) + '\n');
@@ -382,7 +489,7 @@ async function main() {
         await writeFile(HISTORY_FILE, JSON.stringify(history, null, 2) + '\n');
     }
 
-    if (!pricesChanged && !historyChanged) {
+    if (!pricesChanged && !historyChanged && !newsChanged) {
         // Nothing was refreshed at all — surface it so the scheduled run goes red.
         console.error('[refresh] every source failed; existing data left untouched');
         process.exitCode = 1;

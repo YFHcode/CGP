@@ -16,6 +16,13 @@ export const MAIN_NAV: NavLink[] = [
     { href: '/blog', label: 'Blog' },
 ];
 
+/** Archive hubs, linked from the footer so crawlers always reach them. */
+export const ARCHIVE_NAV: NavLink[] = [
+    { href: '/gold-price', label: 'Gold price archive' },
+    { href: '/silver-price', label: 'Silver price archive' },
+    { href: '/news/archive', label: 'News archive' },
+];
+
 /** Secondary links. Previously these were all dead `href="#"` anchors. */
 export const RESOURCE_NAV: NavLink[] = [
     { href: '/about', label: 'About us' },

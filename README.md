@@ -124,6 +124,38 @@ what we want. Do not "fix" this by removing the tag.
 3. If the production branch is protected, allow the `github-actions[bot]` push
    or point the workflow at an unprotected branch.
 
+## Content archives
+
+Two archives grow automatically from the scheduled refresh.
+
+### Price archive — `/gold-price/*`, `/silver-price/*`
+
+Period pages generated from the accumulated price history: one per year, month
+and day on record (currently ~1,000 pages across both metals). Each shows the
+close, high, low, average, change versus the previous close, a chart and a
+table of daily closes.
+
+Every figure is derived from data this project collects itself, so the pages
+are first-party content rather than anything republished.
+
+Years, months and the most recent 120 days are prerendered; older days render
+on demand and are then cached, which keeps build times flat as the archive
+grows.
+
+### News archive — `/news/archive/*`
+
+A dated index of headlines, grouped by month.
+
+**It stores only headline, publisher, date and URL — never article text or
+thumbnails.** Snippets and images belong to the publishers, and republishing
+them is both an infringement risk and the "scraped content" pattern Google's
+[spam policies](https://developers.google.com/search/docs/essentials/spam-policies)
+penalise, with demotions typically applied site-wide. `toArchiveEntry()` in
+`scripts/refresh-data.mjs` enforces this, and a unit test asserts that snippet
+and thumbnail fields never survive into the archive.
+
+Outbound links carry `rel="nofollow"` alongside `noopener noreferrer`.
+
 ## Verifying data sources
 
 Third-party endpoints often cannot be reached from a sandboxed dev environment,

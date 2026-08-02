@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { getBlogSlugs } from '@/sanity/queries';
 import { SITE_URL } from '@/lib/navigation';
+import { getHistory, getNewsArchive, groupArchiveByMonth } from '@/lib/prices';
+import { listPeriods } from '@/lib/history-periods';
 
 /**
  * Sitemap including blog posts, which were previously omitted entirely.
@@ -18,7 +20,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${SITE_URL}/charts/gold`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/charts/silver`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/gold-price-history`, changeFrequency: 'daily', priority: 0.85 },
+        { url: `${SITE_URL}/gold-price`, changeFrequency: 'daily', priority: 0.85 },
+        { url: `${SITE_URL}/silver-price`, changeFrequency: 'daily', priority: 0.85 },
         { url: `${SITE_URL}/news`, changeFrequency: 'daily', priority: 0.8 },
+        { url: `${SITE_URL}/news/archive`, changeFrequency: 'daily', priority: 0.6 },
         { url: `${SITE_URL}/blog`, changeFrequency: 'weekly', priority: 0.75 },
         { url: `${SITE_URL}/about`, changeFrequency: 'monthly', priority: 0.4 },
         { url: `${SITE_URL}/contact`, changeFrequency: 'monthly', priority: 0.4 },
@@ -39,5 +44,45 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
-    return [...staticRoutes, ...postRoutes];
+    // Price archive: one page per year, month and day we hold data for.
+    const history = await getHistory();
+    const archiveRoutes: MetadataRoute.Sitemap = (
+        [
+            ['gold-price', history.gold],
+            ['silver-price', history.silver],
+        ] as const
+    ).flatMap(([base, series]) => [
+        ...listPeriods(series, 'year').map((period) => ({
+            url: `${SITE_URL}/${base}/${period}`,
+            lastModified: now,
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+        })),
+        ...listPeriods(series, 'month').map((period) => ({
+            url: `${SITE_URL}/${base}/${period}`,
+            lastModified: now,
+            changeFrequency: 'weekly' as const,
+            priority: 0.6,
+        })),
+        // Closed days never change again, so they are cheap for crawlers to
+        // revisit and are marked accordingly.
+        ...listPeriods(series, 'day').map((period) => ({
+            url: `${SITE_URL}/${base}/${period}`,
+            lastModified: new Date(`${period}T00:00:00Z`),
+            changeFrequency: 'yearly' as const,
+            priority: 0.4,
+        })),
+    ]);
+
+    const { items } = await getNewsArchive();
+    const newsRoutes: MetadataRoute.Sitemap = [...groupArchiveByMonth(items).keys()].map(
+        (month) => ({
+            url: `${SITE_URL}/news/archive/${month}`,
+            lastModified: now,
+            changeFrequency: 'weekly',
+            priority: 0.5,
+        })
+    );
+
+    return [...staticRoutes, ...postRoutes, ...archiveRoutes, ...newsRoutes];
 }

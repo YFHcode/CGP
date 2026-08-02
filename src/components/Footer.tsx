@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { TrendingUp } from 'lucide-react';
 
-import { MAIN_NAV, RESOURCE_NAV, SITE_NAME } from '@/lib/navigation';
+import { ARCHIVE_NAV, MAIN_NAV, RESOURCE_NAV, SITE_NAME } from '@/lib/navigation';
 
 export function Footer() {
     return (
         <footer className="border-t border-white/10 bg-zinc-950">
             <div className="container mx-auto px-4 py-12">
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-4 lg:grid-cols-5">
                     <div className="col-span-1 md:col-span-2">
                         <div className="mb-4 flex items-center gap-2">
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gold-400 to-gold-600">
@@ -29,6 +29,24 @@ export function Footer() {
                         </h2>
                         <ul className="space-y-2 text-sm">
                             {MAIN_NAV.map((link) => (
+                                <li key={link.href}>
+                                    <Link
+                                        href={link.href}
+                                        className="rounded text-zinc-300 transition-colors hover:text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+                                    >
+                                        {link.label}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </nav>
+
+                    <nav aria-labelledby="footer-archive-heading">
+                        <h2 id="footer-archive-heading" className="mb-4 font-semibold text-white">
+                            Archives
+                        </h2>
+                        <ul className="space-y-2 text-sm">
+                            {ARCHIVE_NAV.map((link) => (
                                 <li key={link.href}>
                                     <Link
                                         href={link.href}

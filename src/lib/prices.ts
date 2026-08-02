@@ -110,3 +110,43 @@ export const getHistory = cache(async (): Promise<MetalHistory> => {
         updatedAt: snapshot.updatedAt ?? null,
     };
 });
+
+export interface NewsArchiveEntry {
+    title: string;
+    link: string;
+    source: string;
+    reportedDate: string | null;
+    seenAt: string;
+}
+
+export interface NewsArchive {
+    updatedAt: string | null;
+    items: NewsArchiveEntry[];
+}
+
+/**
+ * Archived news links, newest first.
+ *
+ * Holds only headline, publisher, date and URL — never article text or
+ * images, which remain the publishers' property.
+ */
+export const getNewsArchive = cache(async (): Promise<NewsArchive> => {
+    const snapshot = await readSnapshot<NewsArchive>('news-archive.json', {
+        updatedAt: null,
+        items: [],
+    });
+    return { updatedAt: snapshot.updatedAt ?? null, items: snapshot.items ?? [] };
+});
+
+/** Groups archived links by the YYYY-MM they were first seen. */
+export function groupArchiveByMonth(items: NewsArchiveEntry[]): Map<string, NewsArchiveEntry[]> {
+    const byMonth = new Map<string, NewsArchiveEntry[]>();
+    for (const item of items) {
+        const month = String(item.seenAt).slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(month)) continue;
+        const bucket = byMonth.get(month);
+        if (bucket) bucket.push(item);
+        else byMonth.set(month, [item]);
+    }
+    return byMonth;
+}

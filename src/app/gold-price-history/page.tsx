@@ -114,7 +114,7 @@ export default async function GoldPriceHistoryPage() {
       </section>
 
       <RelatedLinks
-        links={relatedLinks('goldToday', 'goldChart', 'calculator', 'silverToday', 'silverChart', 'blog')}
+        links={relatedLinks('goldArchive', 'silverArchive', 'goldToday', 'goldChart', 'calculator', 'newsArchive')}
       />
     </>
   );
