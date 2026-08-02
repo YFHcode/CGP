@@ -59,8 +59,22 @@ const YAHOO_SYMBOLS = {
 const STOOQ_URL = process.env.STOOQ_URL || 'https://stooq.com/q/d/l/';
 const STOOQ_SYMBOLS = { XAU: 'xauusd', XAG: 'xagusd' };
 
-/** Roughly five years of trading days — enough for the 1Y range with headroom. */
-const MAX_HISTORY_POINTS = 1300;
+/**
+ * Cap applied when PARSING a provider response, purely to bound one payload.
+ * It is not a cap on stored history.
+ */
+const MAX_PARSE_POINTS = 20000;
+
+/**
+ * Stored history is append-only and never trimmed.
+ *
+ * An earlier version capped it at 1300 points (~3.5 years), which would have
+ * silently started dropping the oldest day on every run once reached — and
+ * every dropped day is a published archive page that would begin returning
+ * 404 after having been indexed. The chart downsamples for display instead, so
+ * there is no reason to discard data here.
+ */
+const MAX_HISTORY_POINTS = Number.POSITIVE_INFINITY;
 
 /** News provider, used only to build a dated index of outbound links. */
 const NEWS_URL = process.env.NEWS_URL || 'https://serpapi.com/search.json';
@@ -81,7 +95,7 @@ const SYMBOLS = ['XAU', 'XAG'];
  * Rows that are malformed or carry non-numeric closes (Stooq emits "N/A" for
  * missing sessions) are dropped rather than poisoning the series with NaN.
  */
-export function parseStooqCsv(text, maxPoints = MAX_HISTORY_POINTS) {
+export function parseStooqCsv(text, maxPoints = MAX_PARSE_POINTS) {
     if (typeof text !== 'string' || text.trim() === '') return [];
 
     const lines = text.trim().split(/\r?\n/);
@@ -115,7 +129,7 @@ export function parseStooqCsv(text, maxPoints = MAX_HISTORY_POINTS) {
  * chart.result[0].indicators.quote[0].close[]. Yahoo emits null closes for
  * non-trading sessions, which must be dropped rather than charted as zero.
  */
-export function parseYahooChart(payload, maxPoints = MAX_HISTORY_POINTS) {
+export function parseYahooChart(payload, maxPoints = MAX_PARSE_POINTS) {
     const result = payload?.chart?.result?.[0];
     if (!result) return [];
 
@@ -165,10 +179,13 @@ export function mergeSeries(existing = [], incoming = [], maxPoints = MAX_HISTOR
         }
     }
 
-    return [...byDate.entries()]
+    const merged = [...byDate.entries()]
         .map(([date, close]) => ({ date, close }))
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(-maxPoints);
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Number.POSITIVE_INFINITY means "keep everything"; slice(-Infinity) would
+    // return an empty array, so guard it explicitly.
+    return Number.isFinite(maxPoints) ? merged.slice(-maxPoints) : merged;
 }
 
 /** Validates that a GoldAPI payload actually carries a usable price. */

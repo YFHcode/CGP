@@ -20,33 +20,63 @@ const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const lastDayOfMonth = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 const isValidMonth = (m) => m >= 1 && m <= 12;
 
+const MONTH_SLUGS = MONTH_NAMES.map((m) => m.toLowerCase());
+const MONTH_NAME_RE = /^([a-z]+)-(\d{4})$/i;
+const DAY_NAME_RE = /^(\d{1,2})-([a-z]+)-(\d{4})$/i;
+const monthNumberFromName = (n) => MONTH_SLUGS.indexOf(String(n).toLowerCase()) + 1;
+
+function slugForKey(key, kind) {
+    if (kind === 'year') return key;
+    const [y, m, d] = key.split('-');
+    const name = MONTH_SLUGS[Number(m) - 1];
+    if (!name) return key;
+    return kind === 'month' ? `${name}-${y}` : `${Number(d)}-${name}-${y}`;
+}
+
+function buildPeriod(kind, y, m, d) {
+    if (y < 1900 || y > 2200) return null;
+    if (kind === 'year') {
+        const key = String(y);
+        return { kind, key, slug: key, start: `${key}-01-01`, end: `${key}-12-31`, label: key };
+    }
+    if (!isValidMonth(m)) return null;
+    const mm = String(m).padStart(2, '0');
+    if (kind === 'month') {
+        const key = `${y}-${mm}`;
+        const last = String(lastDayOfMonth(y, m)).padStart(2, '0');
+        return { kind, key, slug: slugForKey(key, 'month'), start: `${key}-01`, end: `${key}-${last}`,
+                 label: `${MONTH_NAMES[m - 1]} ${y}` };
+    }
+    if (d < 1 || d > lastDayOfMonth(y, m)) return null;
+    const key = `${y}-${mm}-${String(d).padStart(2, '0')}`;
+    return { kind: 'day', key, slug: slugForKey(key, 'day'), start: key, end: key,
+             label: `${d} ${MONTH_NAMES[m - 1]} ${y}` };
+}
+
 function parsePeriod(slug) {
     if (typeof slug !== 'string') return null;
 
     const year = YEAR_RE.exec(slug);
-    if (year) {
-        const y = Number(year[1]);
-        if (y < 1900 || y > 2200) return null;
-        return { kind: 'year', slug, start: `${year[1]}-01-01`, end: `${year[1]}-12-31`, label: year[1] };
+    if (year) return buildPeriod('year', Number(year[1]), 0, 0);
+
+    const isoMonth = MONTH_RE.exec(slug);
+    if (isoMonth) return buildPeriod('month', Number(isoMonth[1]), Number(isoMonth[2]), 0);
+
+    const isoDay = DAY_RE.exec(slug);
+    if (isoDay) return buildPeriod('day', Number(isoDay[1]), Number(isoDay[2]), Number(isoDay[3]));
+
+    const namedMonth = MONTH_NAME_RE.exec(slug);
+    if (namedMonth) {
+        const m = monthNumberFromName(namedMonth[1]);
+        if (m === 0) return null;
+        return buildPeriod('month', Number(namedMonth[2]), m, 0);
     }
 
-    const month = MONTH_RE.exec(slug);
-    if (month) {
-        const y = Number(month[1]); const m = Number(month[2]);
-        if (!isValidMonth(m) || y < 1900 || y > 2200) return null;
-        const last = String(lastDayOfMonth(y, m)).padStart(2, '0');
-        return {
-            kind: 'month', slug,
-            start: `${month[1]}-${month[2]}-01`, end: `${month[1]}-${month[2]}-${last}`,
-            label: `${MONTH_NAMES[m - 1]} ${month[1]}`,
-        };
-    }
-
-    const day = DAY_RE.exec(slug);
-    if (day) {
-        const y = Number(day[1]); const m = Number(day[2]); const d = Number(day[3]);
-        if (!isValidMonth(m) || d < 1 || d > lastDayOfMonth(y, m)) return null;
-        return { kind: 'day', slug, start: slug, end: slug, label: `${d} ${MONTH_NAMES[m - 1]} ${day[1]}` };
+    const namedDay = DAY_NAME_RE.exec(slug);
+    if (namedDay) {
+        const m = monthNumberFromName(namedDay[2]);
+        if (m === 0) return null;
+        return buildPeriod('day', Number(namedDay[3]), m, Number(namedDay[1]));
     }
 
     return null;
@@ -104,11 +134,40 @@ const series = [
 
 test('parsePeriod reads year, month and day slugs', () => {
     assert.deepEqual(parsePeriod('2026'), {
-        kind: 'year', slug: '2026', start: '2026-01-01', end: '2026-12-31', label: '2026',
+        kind: 'year', key: '2026', slug: '2026',
+        start: '2026-01-01', end: '2026-12-31', label: '2026',
     });
     assert.equal(parsePeriod('2026-08').label, 'August 2026');
     assert.equal(parsePeriod('2026-08').end, '2026-08-31');
     assert.equal(parsePeriod('2026-08-02').label, '2 August 2026');
+});
+
+test('canonical slugs are readable, not ISO', () => {
+    assert.equal(parsePeriod('2026').slug, '2026');
+    assert.equal(parsePeriod('2026-08').slug, 'august-2026');
+    assert.equal(parsePeriod('2026-08-02').slug, '2-august-2026');
+    assert.equal(parsePeriod('2025-02-13').slug, '13-february-2025');
+});
+
+test('parsePeriod accepts readable slugs and resolves them identically to ISO', () => {
+    // Old ISO URLs must keep resolving so anything already indexed still works.
+    assert.deepEqual(parsePeriod('13-february-2025'), parsePeriod('2025-02-13'));
+    assert.deepEqual(parsePeriod('february-2025'), parsePeriod('2025-02'));
+    assert.equal(parsePeriod('2-august-2026').key, '2026-08-02');
+    assert.equal(parsePeriod('AUGUST-2026').key, '2026-08', 'case insensitive');
+});
+
+test('parsePeriod rejects invalid month names and impossible readable dates', () => {
+    assert.equal(parsePeriod('smarch-2026'), null);
+    assert.equal(parsePeriod('30-february-2026'), null);
+    assert.equal(parsePeriod('0-august-2026'), null);
+});
+
+test('slugForKey round-trips through parsePeriod', () => {
+    for (const [key, kind] of [['2026', 'year'], ['2026-08', 'month'], ['2026-08-02', 'day']]) {
+        const slug = slugForKey(key, kind);
+        assert.equal(parsePeriod(slug).key, key, `${slug} should resolve back to ${key}`);
+    }
 });
 
 test('parsePeriod gets month lengths right, including leap years', () => {

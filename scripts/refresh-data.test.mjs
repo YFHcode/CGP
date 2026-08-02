@@ -259,3 +259,29 @@ test('mergeNewsArchive tolerates empty and malformed input', () => {
     assert.deepEqual(mergeNewsArchive([null, undefined], []), []);
     assert.deepEqual(mergeNewsArchive([], [{ title: 'no link' }]), []);
 });
+
+// --- History is append-only -------------------------------------------------
+
+test('mergeSeries never drops old points by default', () => {
+    // The archive publishes a page per day, so silently trimming the oldest
+    // entry would 404 a page that had already been indexed.
+    const existing = Array.from({ length: 4000 }, (_, i) => ({
+        date: new Date(Date.UTC(2015, 0, 1 + i)).toISOString().slice(0, 10),
+        close: 1000 + i,
+    }));
+
+    const merged = mergeSeries(existing, [{ date: '2030-01-01', close: 9999 }]);
+
+    assert.equal(merged.length, 4001, 'every historical point survives');
+    assert.equal(merged[0].date, existing[0].date, 'oldest point is still first');
+    assert.equal(merged.at(-1).close, 9999);
+});
+
+test('mergeSeries still honours an explicit finite cap', () => {
+    const existing = [
+        { date: '2024-01-01', close: 1 },
+        { date: '2024-01-02', close: 2 },
+        { date: '2024-01-03', close: 3 },
+    ];
+    assert.equal(mergeSeries(existing, [], 2).length, 2);
+});

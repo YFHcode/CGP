@@ -41,6 +41,28 @@ interface PriceChartProps {
     title?: string;
 }
 
+/**
+ * Caps how many points reach the SVG. Stored history is append-only and grows
+ * forever, so MAX must downsample or the chart would slow to a crawl after a
+ * few years.
+ */
+const MAX_PLOTTED_POINTS = 400;
+
+/**
+ * Evenly thins a series, always keeping the first and last points so the
+ * endpoints of the range stay accurate.
+ */
+function downsample(points: HistoryPoint[], limit = MAX_PLOTTED_POINTS): HistoryPoint[] {
+    if (points.length <= limit) return points;
+
+    const step = (points.length - 1) / (limit - 1);
+    const thinned: HistoryPoint[] = [];
+    for (let i = 0; i < limit; i += 1) {
+        thinned.push(points[Math.round(i * step)]);
+    }
+    return thinned;
+}
+
 /** Trims a series to the trailing window for the selected range. */
 function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
     if (points.length === 0) return [];
@@ -74,7 +96,7 @@ export function PriceChart({
     const series = activeMetal === 'gold' ? gold : silver;
 
     const data = useMemo(() => {
-        const sliced = sliceRange(series, timeRange);
+        const sliced = downsample(sliceRange(series, timeRange));
         // Day-level labels are unreadable across years, so long ranges switch to
         // month + year.
         const isLongRange = timeRange === 'MAX' || timeRange === '1Y' || timeRange === '6M';

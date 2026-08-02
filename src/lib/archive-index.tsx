@@ -4,7 +4,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { JsonLd } from '@/components/JsonLd';
 import { getHistory } from '@/lib/prices';
-import { METAL_ROUTES, getPeriodStats, listPeriods, parsePeriod } from '@/lib/history-periods';
+import { METAL_ROUTES, getPeriodStats, listPeriods, parsePeriod, slugForKey } from '@/lib/history-periods';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import type { MetalSymbol } from '@/types';
 
@@ -73,7 +73,7 @@ export async function renderArchiveIndex(metal: MetalSymbol) {
                                     return (
                                         <li key={year}>
                                             <Link
-                                                href={`${route.base}/${year}`}
+                                                href={`${route.base}/${slugForKey(year, 'year')}`}
                                                 className="block rounded-lg border border-white/10 px-5 py-3 transition-colors hover:border-gold-500/30 hover:text-gold-300"
                                             >
                                                 <span className="block font-semibold text-white">{year}</span>
@@ -103,7 +103,7 @@ export async function renderArchiveIndex(metal: MetalSymbol) {
                                     return (
                                         <li key={month}>
                                             <Link
-                                                href={`${route.base}/${month}`}
+                                                href={`${route.base}/${slugForKey(month, 'month')}`}
                                                 className="flex items-baseline justify-between gap-2 rounded-lg border border-white/10 px-4 py-3 text-sm transition-colors hover:border-gold-500/30"
                                             >
                                                 <span className="text-zinc-200">{period.label}</span>

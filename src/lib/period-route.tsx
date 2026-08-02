@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { PeriodPage } from '@/components/PeriodPage';
 import { getHistory } from '@/lib/prices';
@@ -7,6 +7,7 @@ import {
     getPeriodStats,
     listPeriods,
     parsePeriod,
+    slugForKey,
 } from '@/lib/history-periods';
 import { pageMetadata } from '@/lib/seo';
 import type { MetalSymbol } from '@/types';
@@ -34,11 +35,12 @@ export async function periodStaticParams(metal: MetalSymbol) {
     const history = await getHistory();
     const series = seriesFor(metal, history);
 
-    const years = listPeriods(series, 'year');
-    const months = listPeriods(series, 'month');
-    const recentDays = listPeriods(series, 'day').slice(-120);
-
-    return [...years, ...months, ...recentDays].map((period) => ({ period }));
+    // Emit canonical readable slugs, not ISO keys.
+    return [
+        ...listPeriods(series, 'year').map((key) => slugForKey(key, 'year')),
+        ...listPeriods(series, 'month').map((key) => slugForKey(key, 'month')),
+        ...listPeriods(series, 'day').slice(-120).map((key) => slugForKey(key, 'day')),
+    ].map((period) => ({ period }));
 }
 
 export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
@@ -76,8 +78,15 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
             ? `${route.name} closed at ${money(stats.close)} per troy ounce on ${period.label}. See the full day's figures and how it compares with the previous close.`
             : `${route.name} averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label}, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics.`;
 
+    // The headline figure goes in the title: it is what searchers are looking
+    // for, and it makes the result far more clickable than a bare date.
+    const title =
+        period.kind === 'day'
+            ? `${route.name} Price on ${period.label}: ${money(stats.close)} per Ounce`
+            : `${route.name} Price in ${period.label}: ${money(stats.low)}–${money(stats.high)} per Ounce`;
+
     return pageMetadata({
-        title: `${route.name} Price ${preposition === 'on' ? 'on' : 'in'} ${period.label}`,
+        title,
         description,
         path: `${route.base}/${period.slug}`,
         keywords: [
@@ -91,6 +100,12 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
 export async function renderPeriodPage(metal: MetalSymbol, periodSlug: string) {
     const period = parsePeriod(periodSlug);
     if (!period) notFound();
+
+    // Old ISO URLs still resolve, but redirect to the canonical readable slug
+    // so the same content is never served at two addresses.
+    if (periodSlug !== period.slug) {
+        redirect(`${METAL_ROUTES[metal].base}/${period.slug}`);
+    }
 
     const history = await getHistory();
     const series = seriesFor(metal, history);

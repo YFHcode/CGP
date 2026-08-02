@@ -11,6 +11,7 @@ import {
     METAL_ROUTES,
     adjacentPeriods,
     parentPeriod,
+    slugForKey,
     type PeriodStats,
 } from '@/lib/history-periods';
 import type { HistoryPoint, MetalSymbol } from '@/types';
@@ -61,7 +62,7 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
     const trail = [
         { name: `${route.name} price history`, href: route.base },
         ...(parent && period.kind === 'day'
-            ? [{ name: parent, href: `${route.base}/${parent}` }]
+            ? [{ name: parent.label, href: `${route.base}/${parent.slug}` }]
             : []),
         { name: period.label, href: `${route.base}/${period.slug}` },
     ];
@@ -222,7 +223,7 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                                                         formatDate(point.date)
                                                     ) : (
                                                         <Link
-                                                            href={`${route.base}/${point.date}`}
+                                                            href={`${route.base}/${slugForKey(point.date, 'day')}`}
                                                             className="text-gold-400 hover:text-gold-300"
                                                         >
                                                             {formatDate(point.date)}
@@ -265,11 +266,11 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                 <div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4">
                     {previous ? (
                         <Link
-                            href={`${route.base}/${previous}`}
+                            href={`${route.base}/${previous.slug}`}
                             className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-gold-500/30 hover:text-gold-300"
                         >
                             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                            {route.name} price, {previous}
+                            {route.name} price, {previous.label}
                         </Link>
                     ) : (
                         <span />
@@ -277,19 +278,19 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
 
                     {parent && (
                         <Link
-                            href={`${route.base}/${parent}`}
+                            href={`${route.base}/${parent.slug}`}
                             className="text-sm text-gold-400 hover:text-gold-300"
                         >
-                            View all of {parent}
+                            View all of {parent.label}
                         </Link>
                     )}
 
                     {next ? (
                         <Link
-                            href={`${route.base}/${next}`}
+                            href={`${route.base}/${next.slug}`}
                             className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-gold-500/30 hover:text-gold-300"
                         >
-                            {route.name} price, {next}
+                            {route.name} price, {next.label}
                             <ArrowRight className="h-4 w-4" aria-hidden="true" />
                         </Link>
                     ) : (

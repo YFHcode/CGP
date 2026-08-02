@@ -10,7 +10,17 @@ export type PeriodKind = 'year' | 'month' | 'day';
 
 export interface Period {
     kind: PeriodKind;
-    /** Canonical slug, e.g. "2026", "2026-08", "2026-08-02". */
+    /** ISO key used internally for sorting and lookups: "2026-08-02". */
+    key: string;
+    /**
+     * Canonical URL slug: "2026", "august-2026", "2-august-2026".
+     *
+     * Readable rather than ISO because the URL shows in search results. The
+     * parent segment already supplies the keyword (/gold-price/...), so the
+     * slug does not repeat it — "gold-price/gold-price-on-2-august-2026" is
+     * redundant, and the price is deliberately not in the URL: it is data, not
+     * identity, and would break every link if a figure were ever corrected.
+     */
     slug: string;
     /** Inclusive ISO date bounds. */
     start: string;
@@ -28,6 +38,27 @@ const YEAR_RE = /^(\d{4})$/;
 const MONTH_RE = /^(\d{4})-(\d{2})$/;
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** Readable forms: "august-2026" and "2-august-2026". */
+const MONTH_NAME_RE = /^([a-z]+)-(\d{4})$/i;
+const DAY_NAME_RE = /^(\d{1,2})-([a-z]+)-(\d{4})$/i;
+
+const MONTH_SLUGS = MONTH_NAMES.map((m) => m.toLowerCase());
+
+function monthNumberFromName(name: string): number {
+    return MONTH_SLUGS.indexOf(name.toLowerCase()) + 1; // 0 when unknown
+}
+
+/** Builds the canonical URL slug for an ISO key. */
+export function slugForKey(key: string, kind: PeriodKind): string {
+    if (kind === 'year') return key;
+
+    const [y, m, d] = key.split('-');
+    const monthName = MONTH_SLUGS[Number(m) - 1];
+    if (!monthName) return key;
+
+    return kind === 'month' ? `${monthName}-${y}` : `${Number(d)}-${monthName}-${y}`;
+}
+
 function lastDayOfMonth(year: number, month: number): number {
     // Day 0 of the next month is the last day of this one.
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -37,51 +68,76 @@ function isValidMonth(month: number) {
     return month >= 1 && month <= 12;
 }
 
-/** Parses a URL slug into a period, or null when it isn't a valid one. */
+function buildPeriod(kind: PeriodKind, y: number, m: number, d: number): Period | null {
+    if (y < 1900 || y > 2200) return null;
+
+    if (kind === 'year') {
+        const key = String(y);
+        return { kind, key, slug: key, start: `${key}-01-01`, end: `${key}-12-31`, label: key };
+    }
+
+    if (!isValidMonth(m)) return null;
+    const mm = String(m).padStart(2, '0');
+
+    if (kind === 'month') {
+        const key = `${y}-${mm}`;
+        const last = String(lastDayOfMonth(y, m)).padStart(2, '0');
+        return {
+            kind,
+            key,
+            slug: slugForKey(key, 'month'),
+            start: `${key}-01`,
+            end: `${key}-${last}`,
+            label: `${MONTH_NAMES[m - 1]} ${y}`,
+        };
+    }
+
+    if (d < 1 || d > lastDayOfMonth(y, m)) return null;
+    const key = `${y}-${mm}-${String(d).padStart(2, '0')}`;
+    return {
+        kind: 'day',
+        key,
+        slug: slugForKey(key, 'day'),
+        start: key,
+        end: key,
+        label: `${d} ${MONTH_NAMES[m - 1]} ${y}`,
+    };
+}
+
+/**
+ * Parses a URL slug into a period, or null when it isn't a valid one.
+ *
+ * Accepts both the canonical readable form ("2-august-2026") and the ISO form
+ * ("2026-08-02"). ISO is still parsed so URLs indexed under the old scheme keep
+ * resolving; the page redirects them to the canonical slug rather than serving
+ * the same content at two addresses.
+ */
 export function parsePeriod(slug: string): Period | null {
     if (typeof slug !== 'string') return null;
 
     const year = YEAR_RE.exec(slug);
-    if (year) {
-        const y = Number(year[1]);
-        if (y < 1900 || y > 2200) return null;
-        return {
-            kind: 'year',
-            slug,
-            start: `${year[1]}-01-01`,
-            end: `${year[1]}-12-31`,
-            label: year[1],
-        };
+    if (year) return buildPeriod('year', Number(year[1]), 0, 0);
+
+    const isoMonth = MONTH_RE.exec(slug);
+    if (isoMonth) return buildPeriod('month', Number(isoMonth[1]), Number(isoMonth[2]), 0);
+
+    const isoDay = DAY_RE.exec(slug);
+    if (isoDay) {
+        return buildPeriod('day', Number(isoDay[1]), Number(isoDay[2]), Number(isoDay[3]));
     }
 
-    const month = MONTH_RE.exec(slug);
-    if (month) {
-        const y = Number(month[1]);
-        const m = Number(month[2]);
-        if (!isValidMonth(m) || y < 1900 || y > 2200) return null;
-        const last = String(lastDayOfMonth(y, m)).padStart(2, '0');
-        return {
-            kind: 'month',
-            slug,
-            start: `${month[1]}-${month[2]}-01`,
-            end: `${month[1]}-${month[2]}-${last}`,
-            label: `${MONTH_NAMES[m - 1]} ${month[1]}`,
-        };
+    const namedMonth = MONTH_NAME_RE.exec(slug);
+    if (namedMonth) {
+        const m = monthNumberFromName(namedMonth[1]);
+        if (m === 0) return null;
+        return buildPeriod('month', Number(namedMonth[2]), m, 0);
     }
 
-    const day = DAY_RE.exec(slug);
-    if (day) {
-        const y = Number(day[1]);
-        const m = Number(day[2]);
-        const d = Number(day[3]);
-        if (!isValidMonth(m) || d < 1 || d > lastDayOfMonth(y, m)) return null;
-        return {
-            kind: 'day',
-            slug,
-            start: slug,
-            end: slug,
-            label: `${d} ${MONTH_NAMES[m - 1]} ${day[1]}`,
-        };
+    const namedDay = DAY_NAME_RE.exec(slug);
+    if (namedDay) {
+        const m = monthNumberFromName(namedDay[2]);
+        if (m === 0) return null;
+        return buildPeriod('day', Number(namedDay[3]), m, Number(namedDay[1]));
     }
 
     return null;
@@ -172,21 +228,21 @@ export function listPeriods(points: HistoryPoint[], kind: PeriodKind): string[] 
 export function adjacentPeriods(
     points: HistoryPoint[],
     period: Period
-): { previous: string | null; next: string | null } {
+): { previous: Period | null; next: Period | null } {
     const all = listPeriods(points, period.kind);
-    const index = all.indexOf(period.slug);
+    const index = all.indexOf(period.key);
     if (index === -1) return { previous: null, next: null };
 
     return {
-        previous: index > 0 ? all[index - 1] : null,
-        next: index < all.length - 1 ? all[index + 1] : null,
+        previous: index > 0 ? parsePeriod(all[index - 1]) : null,
+        next: index < all.length - 1 ? parsePeriod(all[index + 1]) : null,
     };
 }
 
-/** The parent period slug: a day rolls up to its month, a month to its year. */
-export function parentPeriod(period: Period): string | null {
-    if (period.kind === 'day') return period.slug.slice(0, 7);
-    if (period.kind === 'month') return period.slug.slice(0, 4);
+/** The parent period: a day rolls up to its month, a month to its year. */
+export function parentPeriod(period: Period): Period | null {
+    if (period.kind === 'day') return parsePeriod(period.key.slice(0, 7));
+    if (period.kind === 'month') return parsePeriod(period.key.slice(0, 4));
     return null;
 }
 

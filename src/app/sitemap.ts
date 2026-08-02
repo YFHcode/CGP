@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { getBlogSlugs } from '@/sanity/queries';
 import { SITE_URL } from '@/lib/navigation';
 import { getHistory, getNewsArchive, groupArchiveByMonth } from '@/lib/prices';
-import { listPeriods } from '@/lib/history-periods';
+import { listPeriods, slugForKey } from '@/lib/history-periods';
 
 /**
  * Sitemap including blog posts, which were previously omitted entirely.
@@ -53,13 +53,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ] as const
     ).flatMap(([base, series]) => [
         ...listPeriods(series, 'year').map((period) => ({
-            url: `${SITE_URL}/${base}/${period}`,
+            url: `${SITE_URL}/${base}/${slugForKey(period, 'year')}`,
             lastModified: now,
             changeFrequency: 'weekly' as const,
             priority: 0.7,
         })),
         ...listPeriods(series, 'month').map((period) => ({
-            url: `${SITE_URL}/${base}/${period}`,
+            url: `${SITE_URL}/${base}/${slugForKey(period, 'month')}`,
             lastModified: now,
             changeFrequency: 'weekly' as const,
             priority: 0.6,
@@ -67,7 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // Closed days never change again, so they are cheap for crawlers to
         // revisit and are marked accordingly.
         ...listPeriods(series, 'day').map((period) => ({
-            url: `${SITE_URL}/${base}/${period}`,
+            url: `${SITE_URL}/${base}/${slugForKey(period, 'day')}`,
             lastModified: new Date(`${period}T00:00:00Z`),
             changeFrequency: 'yearly' as const,
             priority: 0.4,
