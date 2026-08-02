@@ -1,50 +1,57 @@
-import { getMetalPrice } from '@/lib/gold-api';
 import { PriceCard } from './PriceCard';
-import { GoldPriceResponse } from '@/types';
+import { LastUpdated } from './LastUpdated';
+import type { GoldPriceResponse } from '@/types';
 
 interface HeroProps {
-    goldData?: GoldPriceResponse | null;
-    silverData?: GoldPriceResponse | null;
+    goldData: GoldPriceResponse | null;
+    silverData: GoldPriceResponse | null;
+    updatedAt?: string | null;
+    heading?: React.ReactNode;
+    subheading?: string;
+    /** Render the heading as h1 (default) or h2 when the page already has one. */
+    as?: 'h1' | 'h2';
 }
 
-export async function Hero({ goldData: providedGoldData, silverData: providedSilverData }: HeroProps = {}) {
-    // Use provided data ONLY if both are available AND not null, otherwise fetch
-    const [goldData, silverData] = (providedGoldData && providedSilverData)
-        ? [providedGoldData, providedSilverData]
-        : await Promise.all([
-            getMetalPrice('XAU', 'USD'),
-            getMetalPrice('XAG', 'USD'),
-        ]);
-
-    // Log for debugging in production
-    if (!goldData) {
-        console.error('[Hero] Gold data failed to load');
-    }
-    if (!silverData) {
-        console.error('[Hero] Silver data failed to load');
-    }
-
+/**
+ * Price cards with an optional heading.
+ *
+ * Data is always passed in by the page. The previous version fetched its own
+ * data when either value was missing, which meant a single failed metal
+ * triggered a redundant second fetch of both.
+ */
+export function Hero({
+    goldData,
+    silverData,
+    updatedAt,
+    heading,
+    subheading,
+    as: Heading = 'h1',
+}: HeroProps) {
     return (
         <section className="relative overflow-hidden py-12 md:py-20">
-            {/* Background Effects */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-full opacity-30 pointer-events-none">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-gold-500/10 to-transparent blur-3xl" />
+            <div className="pointer-events-none absolute left-1/2 top-0 h-full w-full max-w-3xl -translate-x-1/2 opacity-30">
+                <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-b from-gold-500/10 to-transparent blur-3xl" />
             </div>
 
-            <div className="container mx-auto px-4 relative z-10">
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-4">
-                        Live Gold Price Chart | <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-300 to-gold-600">Real-Time Silver Prices</span>
-                    </h1>
-                    <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
-                        Track live Gold and Silver market data with advanced analytics and historical charts.
-                        Stay ahead of the market with our premium dashboard.
-                    </p>
-                </div>
+            <div className="container relative z-10 mx-auto px-4">
+                {heading && (
+                    <div className="mb-12 text-center">
+                        <Heading className="mb-4 text-4xl font-bold tracking-tight text-white md:text-6xl">
+                            {heading}
+                        </Heading>
+                        {subheading && (
+                            <p className="mx-auto max-w-2xl text-lg text-zinc-300">{subheading}</p>
+                        )}
+                    </div>
+                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
                     <PriceCard symbol="XAU" name="Gold" data={goldData} />
                     <PriceCard symbol="XAG" name="Silver" data={silverData} />
+                </div>
+
+                <div className="mt-6">
+                    <LastUpdated updatedAt={updatedAt ?? null} />
                 </div>
             </div>
         </section>

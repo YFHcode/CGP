@@ -1,68 +1,87 @@
-import { Metadata } from 'next';
+import Link from 'next/link';
+
 import { Hero } from '@/components/Hero';
 import { PriceChart } from '@/components/PriceChart';
 import { NewsSection } from '@/components/NewsSection';
-import { getMetalPrice } from '@/lib/gold-api';
+import { JsonLd } from '@/components/JsonLd';
+import { getPrices, getHistory } from '@/lib/prices';
+import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-    title: 'Silver Price Today | Live Silver Rates in USD, EUR, GBP',
-    description: 'Check today\'s silver price updated live. Real-time silver rates per troy ounce in multiple currencies. Track silver price movements with interactive charts.',
-    keywords: ['silver price today', 'silver rate today', 'today silver price', 'live silver price', 'current silver price'],
-};
+export const metadata = pageMetadata({
+  title: 'Silver Price Today',
+  description:
+    "Today's silver price per troy ounce, gram and kilogram in USD, EUR, GBP and more. Day range, gold-to-silver ratio and historical silver charts.",
+  path: '/silver-price-today',
+  keywords: ['silver price today', 'silver rate today', 'live silver price', 'XAG USD', 'silver spot price'],
+});
 
 export default async function SilverPriceTodayPage() {
-    // Fetch both gold and silver data to avoid duplicate API calls
-    const [goldData, silverData] = await Promise.all([
-        getMetalPrice('XAU', 'USD'),
-        getMetalPrice('XAG', 'USD'),
-    ]);
+  const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);
 
-    return (
-        <div className="flex flex-col min-h-screen">
-            <section className="py-12 bg-zinc-900/50">
-                <div className="container mx-auto px-4">
-                    <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 text-center">
-                        Silver Price Today
-                    </h1>
-                    <p className="text-zinc-400 text-center max-w-3xl mx-auto mb-8">
-                        Stay updated with today's live silver price. Our real-time silver rates are updated continuously
-                        throughout the trading day. View current silver prices in multiple currencies including USD, EUR, GBP, and more.
-                    </p>
-                </div>
-            </section>
+  return (
+    <>
+      <JsonLd schema={breadcrumbSchema([{ name: 'Silver price today', path: '/silver-price-today' }])} />
 
-            <Hero goldData={goldData} silverData={silverData} />
-            <PriceChart />
+      <Hero
+        goldData={gold}
+        silverData={silver}
+        updatedAt={updatedAt}
+        heading="Silver Price Today"
+        subheading="The current silver spot price per troy ounce, gram and kilogram, converted into eight currencies."
+      />
 
-            <section className="py-12 bg-black">
-                <div className="container mx-auto px-4">
-                    <h2 className="text-2xl font-bold text-white mb-6">Understanding Today's Silver Price</h2>
-                    <div className="grid md:grid-cols-2 gap-8 text-zinc-400">
-                        <div>
-                            <h3 className="text-xl font-semibold text-white mb-3">Factors Affecting Silver Prices</h3>
-                            <ul className="space-y-2 list-disc list-inside">
-                                <li>Industrial demand (electronics, solar panels)</li>
-                                <li>Investment demand and ETF holdings</li>
-                                <li>Mining supply and production costs</li>
-                                <li>Gold-to-silver ratio trends</li>
-                                <li>Global economic growth indicators</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-semibold text-white mb-3">Silver vs Gold Investment</h3>
-                            <ul className="space-y-2 list-disc list-inside">
-                                <li>More volatile than gold prices</li>
-                                <li>Lower price point for entry</li>
-                                <li>Dual role: precious metal and industrial commodity</li>
-                                <li>Higher percentage gains potential</li>
-                                <li>Popular for small investors</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </section>
+      {/* Silver-first, and locked, so this page leads with its own metal. */}
+      <PriceChart
+        gold={history.gold}
+        silver={history.silver}
+        source={history.source}
+        defaultMetal="silver"
+        lockMetal
+        title="Silver price history"
+      />
 
-            <NewsSection />
+      <section className="bg-black py-12">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-6 text-2xl font-bold text-white">Understanding the silver price</h2>
+          <div className="grid gap-8 text-zinc-300 md:grid-cols-2">
+            <div>
+              <h3 className="mb-3 text-xl font-semibold text-white">Why silver moves differently</h3>
+              <p className="mb-3">
+                Roughly half of silver demand is industrial — solar panels, electronics and brazing
+                alloys — so silver tracks the economic cycle as well as safe-haven flows. That dual
+                role makes it noticeably more volatile than gold.
+              </p>
+              <p>
+                The gold-to-silver ratio on our{' '}
+                <Link href="/" className="text-gold-400 hover:text-gold-300">
+                  dashboard
+                </Link>{' '}
+                shows how many ounces of silver buy one ounce of gold, a common way to judge relative
+                value between the two.
+              </p>
+            </div>
+            <div>
+              <h3 className="mb-3 text-xl font-semibold text-white">What moves the price</h3>
+              <ul className="list-inside list-disc space-y-2">
+                <li>Industrial demand, especially photovoltaics and electronics</li>
+                <li>Mine supply, much of it a by-product of copper and lead mining</li>
+                <li>Investment flows into bars, coins and ETFs</li>
+                <li>The gold-to-silver ratio and relative-value trading</li>
+                <li>Global growth expectations</li>
+              </ul>
+            </div>
+          </div>
+          <p className="mt-8 text-sm text-zinc-400">
+            Prefer gold? See{' '}
+            <Link href="/gold-price-today" className="text-gold-400 hover:text-gold-300">
+              today&apos;s gold price
+            </Link>
+            .
+          </p>
         </div>
-    );
+      </section>
+
+      <NewsSection />
+    </>
+  );
 }

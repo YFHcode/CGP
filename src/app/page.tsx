@@ -1,33 +1,68 @@
-import { Hero } from "@/components/Hero";
-import { PriceChart } from "@/components/PriceChart";
-import { NewsSection } from "@/components/NewsSection";
-import { AnalysisSection } from "@/components/AnalysisSection";
-import { GoldCalculator } from "@/components/GoldCalculator";
-import { getMetalPrice } from "@/lib/gold-api";
+import { Hero } from '@/components/Hero';
+import { PriceChart } from '@/components/PriceChart';
+import { NewsSection } from '@/components/NewsSection';
+import { AnalysisSection } from '@/components/AnalysisSection';
+import { GoldCalculator } from '@/components/GoldCalculator';
+import { JsonLd } from '@/components/JsonLd';
+import { getPrices, getHistory } from '@/lib/prices';
+import { faqSchema, pageMetadata } from '@/lib/seo';
+
+export const metadata = pageMetadata({
+  title: 'Gold & Silver Prices Today — Live Charts and Calculator',
+  description:
+    'Track gold and silver spot prices in USD, EUR, GBP, JPY, INR and more. Historical charts, gold-to-silver ratio and a karat-aware value calculator.',
+  path: '/',
+  keywords: [
+    'gold price',
+    'silver price',
+    'gold chart',
+    'gold value calculator',
+    'XAU USD',
+    'XAG USD',
+    'gold silver ratio',
+  ],
+});
 
 export default async function Home() {
-  // Fetch both gold and silver data once to avoid duplicate API calls
-  const [goldData, silverData] = await Promise.all([
-    getMetalPrice('XAU', 'USD'),
-    getMetalPrice('XAG', 'USD'),
-  ]);
+  const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Hero goldData={goldData} silverData={silverData} />
-      <PriceChart />
+    <>
+      <JsonLd schema={faqSchema(gold?.price, updatedAt)} />
 
-      {/* Gold Calculator Section */}
-      {goldData && (
-        <section className="py-12 bg-black">
+      <Hero
+        goldData={gold}
+        silverData={silver}
+        updatedAt={updatedAt}
+        heading={
+          <>
+            Gold &amp; Silver Prices{' '}
+            <span className="bg-gradient-to-r from-gold-300 to-gold-600 bg-clip-text text-transparent">
+              Today
+            </span>
+          </>
+        }
+        subheading="Spot prices in eight currencies, with historical charts, the gold-to-silver ratio and a karat value calculator."
+      />
+
+      <PriceChart
+        gold={history.gold}
+        silver={history.silver}
+        source={history.source}
+        title="Price history"
+      />
+
+      <AnalysisSection gold={gold} silver={silver} />
+
+      {gold && (
+        <section className="bg-black py-12">
           <div className="container mx-auto px-4">
-            <GoldCalculator goldPricePerOz={goldData.price} />
+            <GoldCalculator goldPricePerOz={gold.price} />
           </div>
         </section>
       )}
 
-      <AnalysisSection />
       <NewsSection />
-    </div>
+    </>
   );
 }
