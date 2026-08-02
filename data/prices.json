@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-08-02T17:51:41.389Z",
+  "updatedAt": "2026-08-02T19:03:33.915Z",
   "metals": {
     "XAU": {
-      "timestamp": 1785693093,
+      "timestamp": 1785697411,
       "metal": "XAU",
       "currency": "USD",
       "exchange": "FOREXCOM",
@@ -27,7 +27,7 @@
       "price_gram_10k": 54.1634
     },
     "XAG": {
-      "timestamp": 1785693091,
+      "timestamp": 1785697407,
       "metal": "XAG",
       "currency": "USD",
       "exchange": "FOREXCOM",
