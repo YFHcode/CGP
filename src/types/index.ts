@@ -24,7 +24,42 @@ export interface GoldPriceResponse {
   price_gram_10k: number;
 }
 
-export interface CachedPriceData {
-  lastUpdated: number; // Unix timestamp in milliseconds
-  data: GoldPriceResponse;
+export type MetalSymbol = 'XAU' | 'XAG';
+
+/** A single day of historical closing data. */
+export interface HistoryPoint {
+  /** ISO date, YYYY-MM-DD */
+  date: string;
+  close: number;
+}
+
+/**
+ * Shape of `data/prices.json`, written by scripts/refresh-data.mjs and read at
+ * build/request time. The app never calls the upstream price API directly while
+ * this file is populated.
+ */
+export interface PriceSnapshot {
+  /** ISO timestamp of the last successful refresh, or null if never run. */
+  updatedAt: string | null;
+  metals: Partial<Record<MetalSymbol, GoldPriceResponse>>;
+}
+
+/** Shape of `data/history.json`. */
+export interface HistorySnapshot {
+  updatedAt: string | null;
+  /** Where the series came from, for attribution in the UI. */
+  source: string | null;
+  series: Partial<Record<MetalSymbol, HistoryPoint[]>>;
+}
+
+/** News item returned by the news provider. Shared by server and client code. */
+export interface NewsItem {
+  position?: number;
+  link: string;
+  title: string;
+  source: string;
+  date: string;
+  published_at?: string;
+  snippet: string;
+  thumbnail?: string;
 }

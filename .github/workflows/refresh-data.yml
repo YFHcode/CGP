@@ -1,0 +1,89 @@
+name: Refresh price data
+
+# The only place upstream price APIs are called. Everything else in the repo
+# reads the JSON this workflow commits, so API usage is a fixed cost per run
+# rather than a function of traffic, deploys or build workers.
+on:
+  schedule:
+    # 06:00 and 18:00 UTC — 4 upstream calls/day, ~120/month.
+    # Tighten or loosen this to match your API plan's quota.
+    - cron: '0 6,18 * * *'
+  workflow_dispatch: # allow a manual refresh from the Actions tab
+    inputs:
+      dry_run:
+        description: 'Fetch and show the result without committing'
+        type: boolean
+        default: false
+
+concurrency:
+  # Never let two refreshes race on the same branch.
+  group: refresh-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify data helpers
+        run: node --test scripts/refresh-data.test.mjs
+
+      - name: Refresh prices and history
+        env:
+          # Optional: set this repo secret to override the in-source key.
+          GOLD_API_KEY: ${{ secrets.GOLD_API_KEY }}
+        run: node scripts/refresh-data.mjs
+
+      - name: Summarise what was fetched
+        run: |
+          {
+            echo "## Refresh result"
+            echo ""
+            echo '```json'
+            node -e "
+              const p = require('./data/prices.json');
+              const h = require('./data/history.json');
+              console.log(JSON.stringify({
+                updatedAt: p.updatedAt,
+                gold: p.metals?.XAU?.price ?? null,
+                silver: p.metals?.XAG?.price ?? null,
+                historySource: h.source,
+                goldHistoryPoints: h.series?.XAU?.length ?? 0,
+                silverHistoryPoints: h.series?.XAG?.length ?? 0,
+              }, null, 2));
+            "
+            echo '```'
+            echo ""
+            echo "Changed files:"
+            echo '```'
+            git status --porcelain data/ || echo "(none)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit updated data
+        if: ${{ !inputs.dry_run }}
+        run: |
+          if [ -z "$(git status --porcelain data/)" ]; then
+            echo "No data changes to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "chore(data): refresh prices and history [skip ci]"
+          # Rebase before pushing so a concurrent push doesn't fail the run.
+          for attempt in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            echo "Push attempt $attempt failed; retrying..."
+            sleep $((attempt * 5))
+          done
+          echo "Could not push refreshed data after 3 attempts." >&2
+          exit 1

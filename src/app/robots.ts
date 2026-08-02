@@ -1,4 +1,5 @@
-import type { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/navigation';
 
 export default function robots(): MetadataRoute.Robots {
     return {
@@ -6,14 +7,10 @@ export default function robots(): MetadataRoute.Robots {
             {
                 userAgent: '*',
                 allow: '/',
-                disallow: ['/api/', '/private/'],
-            },
-            {
-                userAgent: 'Googlebot',
-                allow: '/',
-                crawlDelay: 0,
+                disallow: ['/api/'],
             },
         ],
-        sitemap: 'https://chartgoldprice.com/sitemap.xml',
-    }
+        sitemap: `${SITE_URL}/sitemap.xml`,
+        host: SITE_URL,
+    };
 }

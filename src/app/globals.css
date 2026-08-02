@@ -3,13 +3,19 @@
 @plugin "@tailwindcss/typography";
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
+/*
+ * The site is dark-only by design. It previously defined a light palette and a
+ * prefers-color-scheme block that nothing used, because <body> hardcoded
+ * bg-black and every component hardcoded text-white — so the light variables
+ * were dead code that only confused future edits.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
 
-  /* Gold Palette */
+  --background: #000000;
+  --foreground: #ededed;
+
+  /* Gold palette */
   --gold-50: #fbf8eb;
   --gold-100: #f5eccd;
   --gold-200: #ebd99f;
@@ -42,18 +48,20 @@
   --color-gold-950: var(--gold-950);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* Force Dark Mode by default for Premium feel if desired, or stick to system */
-/* For now, respecting system preference but ensuring dark mode looks great */
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

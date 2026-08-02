@@ -1,106 +1,136 @@
-import { Metadata } from 'next';
 import { GoldCalculator } from '@/components/GoldCalculator';
-import { getMetalPrice } from '@/lib/gold-api';
+import { LastUpdated } from '@/components/LastUpdated';
+import { JsonLd } from '@/components/JsonLd';
+import { getPrices } from '@/lib/prices';
+import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
+import { KARAT_PURITY } from '@/lib/conversions';
 
-export const metadata: Metadata = {
-    title: 'Gold Price Calculator | Calculate Gold Value by Weight and Karat',
-    description: 'Free gold calculator to determine the value of your gold by weight (oz, grams, kg) and purity (24K, 22K, 18K, 14K). Get instant valuations in multiple currencies.',
-    keywords: ['gold calculator', 'gold value calculator', 'gold price calculator', 'calculate gold value', 'gold worth calculator', 'karat gold calculator'],
-};
+export const metadata = pageMetadata({
+  title: 'Gold Price Calculator',
+  description:
+    'Work out what your gold is worth by weight and karat. Enter ounces, grams or kilograms, pick 24K to 10K purity, and get the melt value in eight currencies.',
+  path: '/gold-price-calculator',
+  keywords: [
+    'gold calculator',
+    'gold value calculator',
+    'scrap gold calculator',
+    'karat gold calculator',
+    'what is my gold worth',
+  ],
+});
+
+const KARAT_GUIDE = [
+  {
+    karat: '24K' as const,
+    title: 'Investment bullion',
+    body: 'The purest form sold, used for bars and coins. Soft and deeply yellow, rarely used in jewellery that gets worn daily.',
+  },
+  {
+    karat: '22K' as const,
+    title: 'High-end jewellery',
+    body: 'Common across South Asia and the Middle East. Retains most of the gold content while being durable enough to wear.',
+  },
+  {
+    karat: '18K' as const,
+    title: 'Fine jewellery and watches',
+    body: 'The most common purity for quality Western jewellery. A good balance of colour, durability and cost.',
+  },
+  {
+    karat: '14K' as const,
+    title: 'Everyday jewellery',
+    body: 'Popular in the United States. Harder and more scratch-resistant, at a lower price point.',
+  },
+];
 
 export default async function GoldCalculatorPage() {
-    const goldData = await getMetalPrice('XAU', 'USD');
+  const { gold, updatedAt } = await getPrices();
 
-    return (
-        <div className="flex flex-col min-h-screen">
-            <section className="py-12 bg-zinc-900/50">
-                <div className="container mx-auto px-4">
-                    <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 text-center">
-                        Gold Price Calculator
-                    </h1>
-                    <p className="text-zinc-400 text-center max-w-3xl mx-auto mb-8">
-                        Calculate the value of your gold instantly with our free gold calculator. Enter the weight of your gold
-                        in ounces, grams, or kilograms, select the karat purity, and get an accurate valuation based on live gold prices.
-                    </p>
-                </div>
-            </section>
+  return (
+    <>
+      <JsonLd
+        schema={[
+          breadcrumbSchema([{ name: 'Gold price calculator', path: '/gold-price-calculator' }]),
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'Gold Price Calculator',
+            applicationCategory: 'FinanceApplication',
+            operatingSystem: 'Any',
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          },
+        ]}
+      />
 
-            {goldData && (
-                <section className="py-12 bg-black">
-                    <div className="container mx-auto px-4">
-                        <GoldCalculator goldPricePerOz={goldData.price} />
-                    </div>
-                </section>
-            )}
-
-            <section className="py-12 bg-zinc-900/30">
-                <div className="container mx-auto px-4">
-                    <h2 className="text-2xl font-bold text-white mb-6 text-center">How to Use the Gold Calculator</h2>
-                    <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-                        <div className="text-center">
-                            <div className="text-4xl font-bold text-gold-400 mb-3">1</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">Enter Weight</h3>
-                            <p className="text-zinc-400 text-sm">
-                                Input the weight of your gold in your preferred unit (ounces, grams, or kilograms)
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-4xl font-bold text-gold-400 mb-3">2</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">Select Karat</h3>
-                            <p className="text-zinc-400 text-sm">
-                                Choose the purity level: 24K (99.9%), 22K (91.7%), 18K (75%), or 14K (58.3%)
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-4xl font-bold text-gold-400 mb-3">3</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">Get Value</h3>
-                            <p className="text-zinc-400 text-sm">
-                                Instantly see the estimated value in your chosen currency based on live gold prices
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section className="py-12 bg-black">
-                <div className="container mx-auto px-4">
-                    <h2 className="text-2xl font-bold text-white mb-6">Understanding Gold Karats</h2>
-                    <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                        <div className="border border-white/10 rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-gold-400 mb-3">24K Gold (99.9% Pure)</h3>
-                            <p className="text-zinc-400 mb-3">
-                                The purest form of gold available. Softer and more yellow in color.
-                                Primarily used for investment-grade gold bars and coins.
-                            </p>
-                            <p className="text-sm text-zinc-500">Best for: Investment bullion</p>
-                        </div>
-                        <div className="border border-white/10 rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-gold-400 mb-3">22K Gold (91.7% Pure)</h3>
-                            <p className="text-zinc-400 mb-3">
-                                Popular in Asia and the Middle East. Slightly harder than 24K,
-                                making it more durable for jewelry while maintaining high gold content.
-                            </p>
-                            <p className="text-sm text-zinc-500">Best for: High-end jewelry</p>
-                        </div>
-                        <div className="border border-white/10 rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-gold-400 mb-3">18K Gold (75% Pure)</h3>
-                            <p className="text-zinc-400 mb-3">
-                                The most common gold purity for fine jewelry. Good balance of
-                                purity, durability, and affordability.
-                            </p>
-                            <p className="text-sm text-zinc-500">Best for: Fine jewelry, watches</p>
-                        </div>
-                        <div className="border border-white/10 rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-gold-400 mb-3">14K Gold (58.3% Pure)</h3>
-                            <p className="text-zinc-400 mb-3">
-                                More durable and affordable. Popular in the United States
-                                for everyday jewelry that can withstand daily wear.
-                            </p>
-                            <p className="text-sm text-zinc-500">Best for: Daily wear jewelry</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+      <section className="bg-zinc-900/50 py-12">
+        <div className="container mx-auto px-4">
+          <h1 className="mb-6 text-center text-4xl font-bold text-white md:text-5xl">
+            Gold Price Calculator
+          </h1>
+          <p className="mx-auto max-w-3xl text-center text-zinc-300">
+            Find out what your gold is worth at current spot prices. Enter the weight, choose the
+            karat purity, and the calculator returns the melt value in your selected currency.
+          </p>
         </div>
-    );
+      </section>
+
+      <section className="bg-black py-12">
+        <div className="container mx-auto px-4">
+          {gold ? (
+            <>
+              <GoldCalculator goldPricePerOz={gold.price} />
+              <div className="mt-6">
+                <LastUpdated updatedAt={updatedAt} />
+              </div>
+            </>
+          ) : (
+            <p className="mx-auto max-w-2xl rounded-xl border border-white/10 bg-zinc-900/50 p-6 text-center text-zinc-300">
+              The calculator needs a current gold price and we couldn&apos;t load one. Please try
+              again shortly.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="bg-zinc-900/30 py-12">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-6 text-center text-2xl font-bold text-white">How to use it</h2>
+          <ol className="mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
+            {[
+              ['Weigh your gold', 'Use a scale accurate to 0.1 g. Weigh each purity separately — mixing karats gives a wrong total.'],
+              ['Select the karat', 'It is usually stamped on the piece (585 = 14K, 750 = 18K, 916 = 22K, 999 = 24K).'],
+              ['Read the melt value', 'The result is the metal value at spot. Dealers pay a percentage of this, not the full amount.'],
+            ].map(([title, body], index) => (
+              <li key={title} className="text-center">
+                <div className="mb-3 text-4xl font-bold text-gold-400">{index + 1}</div>
+                <h3 className="mb-2 text-xl font-semibold text-white">{title}</h3>
+                <p className="text-sm text-zinc-300">{body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="bg-black py-12">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-6 text-center text-2xl font-bold text-white">Understanding gold karats</h2>
+          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+            {KARAT_GUIDE.map(({ karat, title, body }) => (
+              <article key={karat} className="rounded-lg border border-white/10 p-6">
+                <h3 className="mb-3 text-xl font-semibold text-gold-400">
+                  {karat} gold ({(KARAT_PURITY[karat] * 100).toFixed(1)}% pure)
+                </h3>
+                <p className="mb-3 text-zinc-300">{body}</p>
+                <p className="text-sm text-zinc-400">Best for: {title}</p>
+              </article>
+            ))}
+          </div>
+          <p className="mx-auto mt-8 max-w-4xl text-sm text-zinc-400">
+            The calculator returns melt value — the worth of the metal itself. A buyer will offer
+            less to cover refining, handling and margin, while a finished piece may be worth more
+            than its melt value for its craftsmanship or brand.
+          </p>
+        </div>
+      </section>
+    </>
+  );
 }
