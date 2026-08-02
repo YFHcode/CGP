@@ -1,5 +1,18 @@
 {
-  "updatedAt": null,
-  "source": null,
-  "series": {}
+  "updatedAt": "2026-08-02T17:33:49.611Z",
+  "source": "ChartGoldPrice daily snapshots",
+  "series": {
+    "XAU": [
+      {
+        "date": "2026-08-02",
+        "close": 4043.21
+      }
+    ],
+    "XAG": [
+      {
+        "date": "2026-08-02",
+        "close": 57.5605
+      }
+    ]
+  }
 }

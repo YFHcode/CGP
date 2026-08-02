@@ -1,4 +1,55 @@
 {
-  "updatedAt": null,
-  "metals": {}
+  "updatedAt": "2026-08-02T17:33:49.610Z",
+  "metals": {
+    "XAU": {
+      "timestamp": 1785692022,
+      "metal": "XAU",
+      "currency": "USD",
+      "exchange": "FOREXCOM",
+      "symbol": "FOREXCOM:XAUUSD",
+      "prev_close_price": 4103.48,
+      "open_price": 4103.48,
+      "low_price": 4021.26,
+      "high_price": 4111.815,
+      "open_time": 1785456000,
+      "price": 4043.21,
+      "ch": -60.27,
+      "chp": -1.47,
+      "ask": 4043.7,
+      "bid": 4042.72,
+      "price_gram_24k": 129.9922,
+      "price_gram_22k": 119.1595,
+      "price_gram_21k": 113.7432,
+      "price_gram_20k": 108.3269,
+      "price_gram_18k": 97.4942,
+      "price_gram_16k": 86.6615,
+      "price_gram_14k": 75.8288,
+      "price_gram_10k": 54.1634
+    },
+    "XAG": {
+      "timestamp": 1785692019,
+      "metal": "XAG",
+      "currency": "USD",
+      "exchange": "FOREXCOM",
+      "symbol": "FOREXCOM:XAGUSD",
+      "prev_close_price": 59.003,
+      "open_price": 59.003,
+      "low_price": 57.033,
+      "high_price": 59.173,
+      "open_time": 1785456000,
+      "price": 57.5605,
+      "ch": -1.443,
+      "chp": -2.44,
+      "ask": 57.606,
+      "bid": 57.546,
+      "price_gram_24k": 1.8506,
+      "price_gram_22k": 1.6964,
+      "price_gram_21k": 1.6193,
+      "price_gram_20k": 1.5422,
+      "price_gram_18k": 1.388,
+      "price_gram_16k": 1.2337,
+      "price_gram_14k": 1.0795,
+      "price_gram_10k": 0.7711
+    }
+  }
 }
