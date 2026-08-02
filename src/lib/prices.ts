@@ -68,10 +68,11 @@ export const getPrices = cache(async (): Promise<MetalPrices> => {
         return { gold, silver, updatedAt: snapshot.updatedAt, fromSnapshot: true };
     }
 
-    const [liveGold, liveSilver] = await Promise.all([
-        getMetalPrice('XAU'),
-        getMetalPrice('XAG'),
-    ]);
+    // Sequential on purpose. The provider throttles at 5 requests/second, and
+    // this path only runs before the first scheduled refresh, so halving the
+    // burst matters more than the extra round-trip.
+    const liveGold = await getMetalPrice('XAU');
+    const liveSilver = await getMetalPrice('XAG');
 
     // Prefer live, but never discard a snapshot value in favour of a null.
     const resolvedGold = liveGold ?? gold;
