@@ -26,6 +26,8 @@ interface PeriodPageProps {
     /** The other metal's series, so the chart component still works. */
     otherSeries: HistoryPoint[];
     source: string | null;
+    /** Why this day is notable, if it is. Empty for routine days. */
+    notableReasons?: string[];
 }
 
 /** Formats a plain USD figure. These pages are USD-only for stable indexing. */
@@ -38,7 +40,14 @@ function usd(value: number): string {
     });
 }
 
-export function PeriodPage({ metal, stats, series, otherSeries, source }: PeriodPageProps) {
+export function PeriodPage({
+    metal,
+    stats,
+    series,
+    otherSeries,
+    source,
+    notableReasons = [],
+}: PeriodPageProps) {
     const route = METAL_ROUTES[metal];
     const { period } = stats;
     const { previous, next } = adjacentPeriods(series, period);
@@ -130,6 +139,17 @@ export function PeriodPage({ metal, stats, series, otherSeries, source }: Period
                     </p>
                 </div>
             </section>
+
+            {notableReasons.length > 0 && (
+                <section className="border-y border-gold-500/20 bg-gold-500/5 py-4">
+                    <div className="container mx-auto px-4">
+                        <p className="text-sm text-gold-200">
+                            <strong className="font-semibold">Notable session:</strong>{' '}
+                            {notableReasons.join('; ')}.
+                        </p>
+                    </div>
+                </section>
+            )}
 
             {/* Key figures */}
             <section className="bg-black py-10">

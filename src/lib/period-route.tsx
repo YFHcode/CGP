@@ -10,6 +10,7 @@ import {
     slugForKey,
 } from '@/lib/history-periods';
 import { pageMetadata } from '@/lib/seo';
+import { findNotableDays, notableDaySet } from '@/lib/notable-days';
 import type { MetalSymbol } from '@/types';
 
 /**
@@ -85,9 +86,16 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
             ? `${route.name} Price on ${period.label}: ${money(stats.close)} per Ounce`
             : `${route.name} Price in ${period.label}: ${money(stats.low)}–${money(stats.high)} per Ounce`;
 
+    // Routine days are noindex,follow: still crawlable and still passing link
+    // equity up to their month, but not competing for indexing against the
+    // month and year pages that can actually rank.
+    const isRoutineDay =
+        period.kind === 'day' && !notableDaySet(seriesFor(metal, history)).has(period.key);
+
     return pageMetadata({
         title,
         description,
+        noIndex: isRoutineDay,
         path: `${route.base}/${period.slug}`,
         keywords: [
             `${name} price ${period.label.toLowerCase()}`,
@@ -121,6 +129,7 @@ export async function renderPeriodPage(metal: MetalSymbol, periodSlug: string) {
             series={series}
             otherSeries={metal === 'XAU' ? history.silver : history.gold}
             source={history.source}
+            notableReasons={findNotableDays(series).get(period.key) ?? []}
         />
     );
 }

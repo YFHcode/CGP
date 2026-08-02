@@ -3,6 +3,7 @@ import { getBlogSlugs } from '@/sanity/queries';
 import { SITE_URL } from '@/lib/navigation';
 import { getHistory, getNewsArchive, groupArchiveByMonth } from '@/lib/prices';
 import { listPeriods, slugForKey } from '@/lib/history-periods';
+import { notableDaySet } from '@/lib/notable-days';
 
 /**
  * Sitemap including blog posts, which were previously omitted entirely.
@@ -64,13 +65,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'weekly' as const,
             priority: 0.6,
         })),
-        // Closed days never change again, so they are cheap for crawlers to
-        // revisit and are marked accordingly.
-        ...listPeriods(series, 'day').map((period) => ({
+        // Only notable days are indexable, so only those belong in the sitemap.
+        // Routine day pages remain live, crawlable and internally linked, but
+        // listing 1,000 noindex URLs would just burn crawl budget.
+        ...listPeriods(series, 'day')
+            .filter((period) => notableDaySet(series).has(period))
+            .map((period) => ({
             url: `${SITE_URL}/${base}/${slugForKey(period, 'day')}`,
             lastModified: new Date(`${period}T00:00:00Z`),
             changeFrequency: 'yearly' as const,
-            priority: 0.4,
+            priority: 0.5,
         })),
     ]);
 
