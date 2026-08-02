@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test scripts/*.test.mjs",
-    "refresh-data": "node scripts/refresh-data.mjs"
+    "refresh-data": "node scripts/refresh-data.mjs",
+    "probe-sources": "node scripts/probe-sources.mjs"
   },
   "dependencies": {
     "@sanity/image-url": "^2.0.1",

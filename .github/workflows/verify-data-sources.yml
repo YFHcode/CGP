@@ -1,0 +1,53 @@
+name: Verify data sources
+
+# Diagnostic workflow. It probes every data source the site uses, plus candidate
+# alternatives, and writes a comparison table to the run summary.
+#
+# It exists because these endpoints cannot be tested from a sandboxed dev
+# environment — GitHub runners have unrestricted outbound internet, so this is
+# the only place they can genuinely be checked.
+#
+# It never writes to data/. Run it from the Actions tab any time you want to
+# know whether a provider is healthy or worth switching to.
+on:
+  workflow_dispatch:
+  schedule:
+    # Mondays at 07:00 UTC — early warning if a provider dies or changes shape.
+    - cron: '0 7 * * 1'
+
+concurrency:
+  group: verify-data-sources
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Unit tests for probe and parser logic
+        run: npm test
+
+      - name: Probe data sources
+        id: probe
+        env:
+          # All optional. Without them the in-source free-tier keys are used,
+          # and keyed alternatives are reported as skipped rather than failed.
+          GOLD_API_KEY: ${{ secrets.GOLD_API_KEY }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          CURRENCY_API_KEY: ${{ secrets.CURRENCY_API_KEY }}
+          METALS_DEV_KEY: ${{ secrets.METALS_DEV_KEY }}
+        run: node scripts/probe-sources.mjs
+
+      - name: Report failure
+        if: failure() && steps.probe.outcome == 'failure'
+        run: |
+          echo "::warning::One or more data sources currently in use are failing." \
+               "See the run summary for the full table."

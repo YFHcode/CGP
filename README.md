@@ -26,6 +26,7 @@ populate it.
 | `npm run lint` | ESLint |
 | `npm test` | Unit tests for the data pipeline and money maths |
 | `npm run refresh-data` | Fetch prices + history and write `data/*.json` |
+| `npm run probe-sources` | Check every data source and print a health table |
 
 ## How price data works
 
@@ -68,6 +69,31 @@ quota. At `0 6,18 * * *` it uses ~120 calls/month.
   serving last-known-good values.
 - If the historical provider is unreachable, the job still appends that day's
   live quote, so the series keeps growing.
+
+## Verifying data sources
+
+Third-party endpoints often cannot be reached from a sandboxed dev environment,
+so **Verify data sources** (`.github/workflows/verify-data-sources.yml`) probes
+them from a GitHub runner instead. Run it from the Actions tab any time.
+
+It checks everything currently in use *and* a set of candidate replacements,
+then writes a comparison table to the run summary with HTTP status, latency, the
+extracted price and a verdict. It never touches `data/`.
+
+The probe is schema-agnostic: it walks arbitrary JSON to find a price field, so
+a new provider can be evaluated without writing an adapter first. It also flags
+the two classic traps automatically:
+
+- **Inverted quotes** — a source returning XAU-per-USD (≈0.0004) instead of
+  USD-per-XAU
+- **Per-gram values** presented as per-ounce (off by a factor of 31.1)
+
+Only sources actually in use can fail the run; a dead alternative is reported
+but does not go red.
+
+`Refresh price data` also accepts a **dry_run** input, so you can trigger a real
+fetch from the Actions tab and inspect the result in the summary without
+committing anything.
 
 ## Environment variables
 
