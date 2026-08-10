@@ -6,7 +6,7 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { RelatedLinks, relatedLinks } from './RelatedLinks';
 import { JsonLd } from './JsonLd';
 import { cn } from '@/lib/utils';
-import { breadcrumbSchema } from '@/lib/seo';
+import { breadcrumbSchema, SITE_URL } from '@/lib/seo';
 import { periodQuestions, periodFaqSchema } from '@/lib/period-faq';
 import { computeInsights } from '@/lib/period-insights';
 import {
@@ -87,9 +87,17 @@ export function PeriodPage({
                         '@type': 'Dataset',
                         name: `${route.name} price, ${period.label}`,
                         description: `Daily ${name} closing prices for ${period.label}, including high, low and average.`,
+                        url: `${SITE_URL}${route.base}/${period.slug}`,
+                        // Recommended (not required) fields for Google Dataset Search
+                        // eligibility, a separate index from web search that surfaces
+                        // pages carrying Dataset markup — cheap to add, currently unused
+                        // by any competing site in this niche.
+                        license: `${SITE_URL}/terms`,
+                        isAccessibleForFree: true,
+                        keywords: [`${name} price`, `${name} price history`, 'precious metals data'],
                         temporalCoverage: `${period.start}/${period.end}`,
                         variableMeasured: `${route.name} price (USD per troy ounce)`,
-                        creator: { '@type': 'Organization', name: 'ChartGoldPrice' },
+                        creator: { '@type': 'Organization', name: 'ChartGoldPrice', url: SITE_URL },
                     },
                     periodFaqSchema(questions),
                 ]}
