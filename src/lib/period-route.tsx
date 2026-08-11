@@ -91,10 +91,15 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
               : `${route.name} has averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label} so far, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics, updated as the ${period.kind === 'year' ? 'year' : 'month'} continues.`;
 
     // The headline figure goes in the title: it is what searchers are looking
-    // for, and it makes the result far more clickable than a bare date.
+    // for, and it makes the result far more clickable than a bare date. When
+    // the day has a real story, its compact form leads the title over the
+    // generic "per Ounce" — that's the difference between a result that
+    // reads like every other date page and one that reads like news.
     const title =
         period.kind === 'day'
-            ? `${route.name} Price on ${period.label}: ${money(stats.close)} per Ounce`
+            ? headline
+                ? `${route.name} Price on ${period.label}: ${money(stats.close)} — ${headline.shortText}`
+                : `${route.name} Price on ${period.label}: ${money(stats.close)} per Ounce`
             : `${route.name} Price in ${period.label}: ${money(stats.low)}–${money(stats.high)} per Ounce`;
 
     return pageMetadata({

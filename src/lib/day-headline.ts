@@ -19,6 +19,8 @@ const BIG_MOVE_PCT = 3;
 
 export interface DayHeadline {
     text: string;
+    /** A compact variant for title tags, where the full sentence won't fit. */
+    shortText: string;
     kind: 'all-time-high' | 'all-time-low' | 'high-since' | 'low-since' | 'big-move';
 }
 
@@ -54,10 +56,18 @@ export function computeDayHeadline(
     const lowSince = mostRecentMatch(series, index, (c) => c <= current);
 
     if (!highSince) {
-        return { text: `${metalName}'s highest closing price on record`, kind: 'all-time-high' };
+        return {
+            text: `${metalName}'s highest closing price on record`,
+            shortText: 'All-Time High',
+            kind: 'all-time-high',
+        };
     }
     if (!lowSince) {
-        return { text: `${metalName}'s lowest closing price on record`, kind: 'all-time-low' };
+        return {
+            text: `${metalName}'s lowest closing price on record`,
+            shortText: 'All-Time Low',
+            kind: 'all-time-low',
+        };
     }
 
     const highGap = daysBetween(highSince.date, date);
@@ -66,12 +76,14 @@ export function computeDayHeadline(
     if (highGap >= MEANINGFUL_GAP_DAYS && highGap >= lowGap) {
         return {
             text: `Highest closing price since ${formatLongDate(highSince.date)}`,
+            shortText: `Highest Since ${formatLongDate(highSince.date)}`,
             kind: 'high-since',
         };
     }
     if (lowGap >= MEANINGFUL_GAP_DAYS) {
         return {
             text: `Lowest closing price since ${formatLongDate(lowSince.date)}`,
+            shortText: `Lowest Since ${formatLongDate(lowSince.date)}`,
             kind: 'low-since',
         };
     }
@@ -80,8 +92,10 @@ export function computeDayHeadline(
     if (previous > 0) {
         const pct = ((current - previous) / previous) * 100;
         if (Math.abs(pct) >= BIG_MOVE_PCT) {
+            const pctText = `${Math.abs(pct).toFixed(1)}%`;
             return {
-                text: `${metalName} ${pct >= 0 ? 'jumps' : 'falls'} ${Math.abs(pct).toFixed(1)}% in a single session`,
+                text: `${metalName} ${pct >= 0 ? 'jumps' : 'falls'} ${pctText} in a single session`,
+                shortText: pct >= 0 ? `Jumps ${pctText}` : `Falls ${pctText}`,
                 kind: 'big-move',
             };
         }

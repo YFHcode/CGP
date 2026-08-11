@@ -39,25 +39,39 @@ function computeDayHeadline(series, date, metalName) {
     const highSince = mostRecentMatch(series, index, (c) => c >= current);
     const lowSince = mostRecentMatch(series, index, (c) => c <= current);
 
-    if (!highSince) return { text: `${metalName}'s highest closing price on record`, kind: 'all-time-high' };
-    if (!lowSince) return { text: `${metalName}'s lowest closing price on record`, kind: 'all-time-low' };
+    if (!highSince) {
+        return { text: `${metalName}'s highest closing price on record`, shortText: 'All-Time High', kind: 'all-time-high' };
+    }
+    if (!lowSince) {
+        return { text: `${metalName}'s lowest closing price on record`, shortText: 'All-Time Low', kind: 'all-time-low' };
+    }
 
     const highGap = daysBetween(highSince.date, date);
     const lowGap = daysBetween(lowSince.date, date);
 
     if (highGap >= MEANINGFUL_GAP_DAYS && highGap >= lowGap) {
-        return { text: `Highest closing price since ${formatLongDate(highSince.date)}`, kind: 'high-since' };
+        return {
+            text: `Highest closing price since ${formatLongDate(highSince.date)}`,
+            shortText: `Highest Since ${formatLongDate(highSince.date)}`,
+            kind: 'high-since',
+        };
     }
     if (lowGap >= MEANINGFUL_GAP_DAYS) {
-        return { text: `Lowest closing price since ${formatLongDate(lowSince.date)}`, kind: 'low-since' };
+        return {
+            text: `Lowest closing price since ${formatLongDate(lowSince.date)}`,
+            shortText: `Lowest Since ${formatLongDate(lowSince.date)}`,
+            kind: 'low-since',
+        };
     }
 
     const previous = series[index - 1].close;
     if (previous > 0) {
         const pct = ((current - previous) / previous) * 100;
         if (Math.abs(pct) >= BIG_MOVE_PCT) {
+            const pctText = `${Math.abs(pct).toFixed(1)}%`;
             return {
-                text: `${metalName} ${pct >= 0 ? 'jumps' : 'falls'} ${Math.abs(pct).toFixed(1)}% in a single session`,
+                text: `${metalName} ${pct >= 0 ? 'jumps' : 'falls'} ${pctText} in a single session`,
+                shortText: pct >= 0 ? `Jumps ${pctText}` : `Falls ${pctText}`,
                 kind: 'big-move',
             };
         }
@@ -84,6 +98,7 @@ test('a genuine all-time high is flagged as such, not "since" some date', () => 
     ];
     const h = computeDayHeadline(series, '2020-01-03', 'Gold');
     assert.equal(h.kind, 'all-time-high');
+    assert.equal(h.shortText, 'All-Time High');
 });
 
 test('a genuine all-time low is flagged as such', () => {
@@ -122,6 +137,7 @@ test('"highest since" fires once the gap is meaningful', () => {
     const h = computeDayHeadline(series, target, 'Gold');
     assert.equal(h.kind, 'high-since');
     assert.ok(h.text.includes('1 January 2026'));
+    assert.equal(h.shortText, 'Highest Since 1 January 2026');
 });
 
 test('a big single-session move is flagged when nothing else applies', () => {
@@ -133,6 +149,18 @@ test('a big single-session move is flagged when nothing else applies', () => {
     // Only one prior point exists, so it's simultaneously the all-time high —
     // that takes priority over "big move", which is correct: it IS the record.
     assert.equal(h.kind, 'all-time-high');
+});
+
+test('a big move within an existing range (not a record) gets the move headline', () => {
+    const series = [
+        { date: '2026-02-01', close: 900 },  // establishes a wide prior range
+        { date: '2026-02-02', close: 1100 },
+        { date: '2026-02-03', close: 1000 },
+        { date: '2026-02-04', close: 950 }, // -5%, well within [900, 1100]
+    ];
+    const h = computeDayHeadline(series, '2026-02-04', 'Gold');
+    assert.equal(h.kind, 'big-move');
+    assert.equal(h.shortText, 'Falls 5.0%');
 });
 
 test('a small move that sets no record and isn\'t "since" anything gets no headline', () => {
