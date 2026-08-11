@@ -76,8 +76,12 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
 
     const description =
         period.kind === 'day'
-            ? `${route.name} closed at ${money(stats.close)} per troy ounce on ${period.label}. See the full day's figures and how it compares with the previous close.`
-            : `${route.name} averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label}, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics.`;
+            ? stats.isComplete
+                ? `${route.name} closed at ${money(stats.close)} per troy ounce on ${period.label}. See the full day's figures and how it compares with the previous close.`
+                : `${route.name} was last quoted at ${money(stats.close)} per troy ounce on ${period.label}, with trading still in progress. See the latest figures and how they compare with the previous close.`
+            : stats.isComplete
+              ? `${route.name} averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label}, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics.`
+              : `${route.name} has averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label} so far, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics, updated as the ${period.kind === 'year' ? 'year' : 'month'} continues.`;
 
     // The headline figure goes in the title: it is what searchers are looking
     // for, and it makes the result far more clickable than a bare date.

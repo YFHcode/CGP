@@ -82,7 +82,11 @@ function parsePeriod(slug) {
     return null;
 }
 
-function getPeriodStats(points, period) {
+function isPeriodComplete(period, today = new Date().toISOString().slice(0, 10)) {
+    return period.end < today;
+}
+
+function getPeriodStats(points, period, today) {
     const inRange = points.filter((p) => p.date >= period.start && p.date <= period.end);
     if (inRange.length === 0) return null;
 
@@ -107,6 +111,7 @@ function getPeriodStats(points, period) {
         average, change: close - baseline,
         changePct: baseline !== 0 ? ((close - baseline) / baseline) * 100 : 0,
         previousClose,
+        isComplete: isPeriodComplete(period, today),
     };
 }
 
@@ -260,4 +265,35 @@ test('listPeriods enumerates distinct sorted periods', () => {
 test('listPeriods ignores malformed dates', () => {
     const dirty = [...series, { date: 'garbage', close: 1 }, { date: '2026', close: 2 }];
     assert.deepEqual(listPeriods(dirty, 'year'), ['2025', '2026']);
+});
+
+// --- isComplete / isPeriodComplete ------------------------------------------
+// The regression: a live month page said "Gold finished August 2026" while
+// August 2026 was still in progress. A period must never be described as
+// finished until it has actually elapsed.
+
+test('a month is incomplete while "today" falls inside it', () => {
+    assert.equal(isPeriodComplete(parsePeriod('2026-08'), '2026-08-11'), false);
+});
+
+test('a month is complete once "today" is after its end', () => {
+    assert.equal(isPeriodComplete(parsePeriod('2026-07'), '2026-08-11'), true);
+});
+
+test('a period ending exactly today is not yet complete', () => {
+    // The day it ends on is still in progress until it is over.
+    assert.equal(isPeriodComplete(parsePeriod('2026-08-11'), '2026-08-11'), false);
+    assert.equal(isPeriodComplete(parsePeriod('2026'), '2026-08-11'), false);
+});
+
+test('a fully past year is complete', () => {
+    assert.equal(isPeriodComplete(parsePeriod('2025'), '2026-08-11'), true);
+});
+
+test('getPeriodStats surfaces isComplete on the returned stats', () => {
+    const inProgress = getPeriodStats(series, parsePeriod('2026-01'), '2026-01-15');
+    assert.equal(inProgress.isComplete, false);
+
+    const finished = getPeriodStats(series, parsePeriod('2026-01'), '2026-02-01');
+    assert.equal(finished.isComplete, true);
 });

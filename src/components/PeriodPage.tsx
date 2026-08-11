@@ -113,8 +113,10 @@ export function PeriodPage({
                     <p className="max-w-3xl text-zinc-300">
                         {isSingleDay ? (
                             <>
-                                {route.name} closed at <strong className="text-white">{usd(stats.close)}</strong> per
-                                troy ounce on {period.label}
+                                {route.name} {stats.isComplete ? 'closed' : 'was last quoted'} at{' '}
+                                <strong className="text-white">{usd(stats.close)}</strong> per troy ounce
+                                {' '}on {period.label}
+                                {!stats.isComplete && ', with trading still in progress'}
                                 {stats.previousClose !== null && (
                                     <>
                                         , {isFlat ? 'unchanged from' : isUp ? 'up' : 'down'}{' '}
@@ -131,12 +133,18 @@ export function PeriodPage({
                             </>
                         ) : (
                             <>
-                                {route.name} ranged between{' '}
+                                {route.name} {stats.isComplete ? 'ranged' : 'has ranged'} between{' '}
                                 <strong className="text-white">{usd(stats.low)}</strong> and{' '}
                                 <strong className="text-white">{usd(stats.high)}</strong> per troy ounce
-                                during {period.label}, averaging {usd(stats.average)} across{' '}
+                                {stats.isComplete ? ' during' : ' so far in'} {period.label}
+                                {!stats.isComplete && (
+                                    <> (through {formatLongDate(stats.points[stats.points.length - 1].date)})</>
+                                )}
+                                , averaging {usd(stats.average)} across{' '}
                                 {stats.points.length} trading {stats.points.length === 1 ? 'day' : 'days'}
-                                . It finished the period at {usd(stats.close)}
+                                {stats.isComplete
+                                    ? <>. It finished the period at {usd(stats.close)}</>
+                                    : <> so far. It is currently at {usd(stats.close)}</>}
                                 {stats.previousClose !== null && (
                                     <>
                                         , {isFlat ? 'level with' : isUp ? 'up' : 'down'}{' '}
@@ -167,11 +175,28 @@ export function PeriodPage({
                 <div className="container mx-auto px-4">
                     <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         {[
-                            { label: isSingleDay ? 'Close' : 'Period close', value: usd(stats.close) },
-                            { label: 'High', value: usd(stats.high), sub: formatLongDate(stats.highDate) },
-                            { label: 'Low', value: usd(stats.low), sub: formatLongDate(stats.lowDate) },
                             {
-                                label: isSingleDay ? 'Previous close' : 'Average',
+                                label: isSingleDay
+                                    ? stats.isComplete
+                                        ? 'Close'
+                                        : 'Latest price'
+                                    : stats.isComplete
+                                      ? 'Period close'
+                                      : 'Latest close (period in progress)',
+                                value: usd(stats.close),
+                            },
+                            {
+                                label: stats.isComplete ? 'High' : 'High so far',
+                                value: usd(stats.high),
+                                sub: formatLongDate(stats.highDate),
+                            },
+                            {
+                                label: stats.isComplete ? 'Low' : 'Low so far',
+                                value: usd(stats.low),
+                                sub: formatLongDate(stats.lowDate),
+                            },
+                            {
+                                label: isSingleDay ? 'Previous close' : stats.isComplete ? 'Average' : 'Average so far',
                                 value: isSingleDay
                                     ? stats.previousClose !== null
                                         ? usd(stats.previousClose)
