@@ -82,17 +82,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'weekly' as const,
             priority: 0.6,
         })),
-        // Only notable days are indexable, so only those belong in the sitemap.
-        // Routine day pages remain live, crawlable and internally linked, but
-        // listing 1,000 noindex URLs would just burn crawl budget.
-        ...listPeriods(series, 'day')
-            .filter((period) => notableDaySet(series).has(period))
-            .map((period) => ({
-            url: `${SITE_URL}/${base}/${slugForKey(period, 'day')}`,
-            lastModified: new Date(`${period}T00:00:00Z`),
-            changeFrequency: 'yearly' as const,
-            priority: 0.5,
-        })),
+        // Every day is indexable now that each carries a real, computed
+        // headline and week/month/year narrative rather than a bare stats
+        // table. Notable days (records, big moves) get a higher priority —
+        // they're the ones actually worth a crawler's first look.
+        //
+        // notableDaySet is computed once outside the map: it re-derives every
+        // record and big-move in the whole series, so calling it per-day would
+        // make sitemap generation scale quadratically with history length.
+        ...(() => {
+            const notable = notableDaySet(series);
+            return listPeriods(series, 'day').map((period) => ({
+                url: `${SITE_URL}/${base}/${slugForKey(period, 'day')}`,
+                lastModified: new Date(`${period}T00:00:00Z`),
+                changeFrequency: 'yearly' as const,
+                priority: notable.has(period) ? 0.5 : 0.3,
+            }));
+        })(),
     ]);
 
     const topicRoutes: MetadataRoute.Sitemap = [

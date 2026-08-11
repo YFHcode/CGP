@@ -118,6 +118,28 @@ export function periodQuestions(
                 });
             }
 
+            if (insights.weekAgoClose !== null && insights.weekAgoChangePct !== null) {
+                questions.push({
+                    question: `How does the ${lower} price on ${label} compare with a week earlier?`,
+                    answer:
+                        `A week before ${label}, ${lower} was around ${usd(insights.weekAgoClose)} ` +
+                        `per troy ounce, so the close of ${usd(stats.close)} is a ` +
+                        `${insights.weekAgoChangePct >= 0 ? 'gain' : 'loss'} of ` +
+                        `${Math.abs(insights.weekAgoChangePct).toFixed(1)}% over the week.`,
+                });
+            }
+
+            if (insights.monthAgoClose !== null && insights.monthAgoChangePct !== null) {
+                questions.push({
+                    question: `How does the ${lower} price on ${label} compare with a month earlier?`,
+                    answer:
+                        `A month before ${label}, ${lower} was around ${usd(insights.monthAgoClose)} ` +
+                        `per troy ounce, so the close of ${usd(stats.close)} is a ` +
+                        `${insights.monthAgoChangePct >= 0 ? 'gain' : 'loss'} of ` +
+                        `${Math.abs(insights.monthAgoChangePct).toFixed(1)}% over the month.`,
+                });
+            }
+
             if (insights.yearAgoClose !== null && insights.yearAgoChangePct !== null) {
                 questions.push({
                     question: `How did the ${lower} price on ${label} compare with a year earlier?`,

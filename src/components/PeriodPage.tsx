@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { breadcrumbSchema, SITE_URL } from '@/lib/seo';
 import { periodQuestions, periodFaqSchema } from '@/lib/period-faq';
 import { computeInsights } from '@/lib/period-insights';
+import { computeDayHeadline } from '@/lib/day-headline';
 import {
     METAL_ROUTES,
     adjacentPeriods,
@@ -61,6 +62,11 @@ export function PeriodPage({
     const isSingleDay = period.kind === 'day';
     const name = route.name.toLowerCase();
 
+    // A punchy, data-derived headline for day pages — "highest close since
+    // 3 June 2026" rather than a bare stats table. Null when the day has
+    // nothing genuinely distinctive about it.
+    const headline = isSingleDay ? computeDayHeadline(series, period.key, route.name) : null;
+
     // Long-tail Q&A generated from the real figures. This is where search
     // intent like "what was the average gold price in March 2026" is targeted.
     const insights = computeInsights(stats, series, otherSeries, metal);
@@ -110,6 +116,9 @@ export function PeriodPage({
                     <h1 className="mb-3 text-3xl font-bold text-white md:text-4xl">
                         {route.name} price {isSingleDay ? 'on' : 'in'} {period.label}
                     </h1>
+                    {headline && (
+                        <p className="mb-3 text-lg font-medium text-gold-300">{headline.text}</p>
+                    )}
                     <p className="max-w-3xl text-zinc-300">
                         {isSingleDay ? (
                             <>
@@ -334,6 +343,33 @@ export function PeriodPage({
                                     <dd className="mt-1 text-lg font-bold text-white">{item.value}</dd>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {isSingleDay && (insights.weekAgoClose !== null || insights.monthAgoClose !== null) && (
+                        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                            {insights.weekAgoClose !== null && insights.weekAgoChangePct !== null && (
+                                <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                                    <dt className="text-xs text-zinc-400">Versus a week ago</dt>
+                                    <dd className="mt-1 text-lg font-bold text-white">
+                                        {pct(insights.weekAgoChangePct)}
+                                    </dd>
+                                    <dd className="mt-1 text-xs text-zinc-400">
+                                        from {usd(insights.weekAgoClose)}
+                                    </dd>
+                                </div>
+                            )}
+                            {insights.monthAgoClose !== null && insights.monthAgoChangePct !== null && (
+                                <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                                    <dt className="text-xs text-zinc-400">Versus a month ago</dt>
+                                    <dd className="mt-1 text-lg font-bold text-white">
+                                        {pct(insights.monthAgoChangePct)}
+                                    </dd>
+                                    <dd className="mt-1 text-xs text-zinc-400">
+                                        from {usd(insights.monthAgoClose)}
+                                    </dd>
+                                </div>
+                            )}
                         </div>
                     )}
 
