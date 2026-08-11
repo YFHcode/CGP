@@ -1,6 +1,7 @@
 import { PriceCard } from './PriceCard';
 import { LastUpdated } from './LastUpdated';
-import type { GoldPriceResponse } from '@/types';
+import { cn } from '@/lib/utils';
+import type { GoldPriceResponse, MetalSymbol } from '@/types';
 
 interface HeroProps {
     goldData: GoldPriceResponse | null;
@@ -10,6 +11,12 @@ interface HeroProps {
     subheading?: string;
     /** Render the heading as h1 (default) or h2 when the page already has one. */
     as?: 'h1' | 'h2';
+    /**
+     * Show only this metal's card. Omit for the dual-card dashboard view
+     * (the homepage) — the gold/silver "today" pages pass their own metal so
+     * they read as a specialized page rather than a comparison view.
+     */
+    metal?: MetalSymbol;
 }
 
 /**
@@ -26,6 +33,7 @@ export function Hero({
     heading,
     subheading,
     as: Heading = 'h1',
+    metal,
 }: HeroProps) {
     return (
         <section className="relative overflow-hidden py-12 md:py-20">
@@ -45,9 +53,18 @@ export function Hero({
                     </div>
                 )}
 
-                <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
-                    <PriceCard symbol="XAU" name="Gold" data={goldData} />
-                    <PriceCard symbol="XAG" name="Silver" data={silverData} />
+                <div
+                    className={cn(
+                        'mx-auto grid grid-cols-1 gap-6',
+                        metal ? 'max-w-md' : 'max-w-4xl md:grid-cols-2'
+                    )}
+                >
+                    {(!metal || metal === 'XAU') && (
+                        <PriceCard symbol="XAU" name="Gold" data={goldData} />
+                    )}
+                    {(!metal || metal === 'XAG') && (
+                        <PriceCard symbol="XAG" name="Silver" data={silverData} />
+                    )}
                 </div>
 
                 <div className="mt-6">

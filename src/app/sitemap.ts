@@ -26,6 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${SITE_URL}/charts/gold`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/charts/silver`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/gold-price-history`, changeFrequency: 'daily', priority: 0.85 },
+        { url: `${SITE_URL}/gold-price-insights`, changeFrequency: 'daily', priority: 0.85 },
+        { url: `${SITE_URL}/silver-price-insights`, changeFrequency: 'daily', priority: 0.8 },
         { url: `${SITE_URL}/gold-price`, changeFrequency: 'daily', priority: 0.85 },
         { url: `${SITE_URL}/silver-price`, changeFrequency: 'daily', priority: 0.85 },
         { url: `${SITE_URL}/news`, changeFrequency: 'daily', priority: 0.8 },
