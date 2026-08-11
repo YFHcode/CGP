@@ -73,7 +73,7 @@ export default async function Home() {
           'calculator',
           'history',
           'goldChart',
-          'silverChart'
+          'goldInsights'
         )}
       />
     </>

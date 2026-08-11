@@ -549,8 +549,8 @@ export function PeriodPage({
                     'calculator',
                     'history',
                     metal === 'XAU' ? 'goldChart' : 'silverChart',
-                    'news',
-                    'blog'
+                    metal === 'XAU' ? 'goldInsights' : 'silverInsights',
+                    'news'
                 )}
             />
         </>
