@@ -111,8 +111,8 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
             <RelatedLinks
                 links={
                     slug === 'gold'
-                        ? relatedLinks('goldToday', 'calculator', 'history', 'silverChart', 'news', 'blog')
-                        : relatedLinks('silverToday', 'goldChart', 'calculator', 'history', 'news', 'blog')
+                        ? relatedLinks('goldToday', 'calculator', 'history', 'silverChart', 'news', 'goldInsights')
+                        : relatedLinks('silverToday', 'goldChart', 'calculator', 'history', 'news', 'silverInsights')
                 }
             />
         </>

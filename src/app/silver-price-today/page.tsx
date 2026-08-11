@@ -31,6 +31,7 @@ export default async function SilverPriceTodayPage() {
         updatedAt={updatedAt}
         heading="Silver Price Today"
         subheading="The current silver spot price per troy ounce, gram and kilogram, converted into eight currencies."
+        metal="XAG"
       />
 
       {/* Silver-first, and locked, so this page leads with its own metal. */}
@@ -87,7 +88,7 @@ export default async function SilverPriceTodayPage() {
       <NewsSection />
 
       <RelatedLinks
-        links={relatedLinks('silverChart', 'goldToday', 'calculator', 'history', 'goldChart', 'news')}
+        links={relatedLinks('silverChart', 'goldToday', 'calculator', 'history', 'silverInsights', 'news')}
       />
     </>
   );

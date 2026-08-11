@@ -32,6 +32,7 @@ export default async function GoldPriceTodayPage() {
         updatedAt={updatedAt}
         heading="Gold Price Today"
         subheading="The current gold spot price per troy ounce, gram and kilogram, converted into eight currencies."
+        metal="XAU"
       />
 
       {/* Gold-first history so this page isn't a duplicate of the silver one. */}
@@ -92,7 +93,7 @@ export default async function GoldPriceTodayPage() {
       <NewsSection />
 
       <RelatedLinks
-        links={relatedLinks('goldChart', 'calculator', 'history', 'silverToday', 'blog', 'news')}
+        links={relatedLinks('goldChart', 'calculator', 'history', 'silverToday', 'goldInsights', 'news')}
       />
     </>
   );

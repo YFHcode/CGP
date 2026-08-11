@@ -128,6 +128,16 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         label: 'Silver price archive',
         description: 'Silver prices by year, month and day, with highs, lows and averages.',
     },
+    goldInsights: {
+        href: '/gold-price-insights',
+        label: 'Gold price insights',
+        description: 'Moving averages, volatility, drawdowns, annual returns, seasonality and records.',
+    },
+    silverInsights: {
+        href: '/silver-price-insights',
+        label: 'Silver price insights',
+        description: 'Moving averages, volatility, drawdowns, annual returns, seasonality and records.',
+    },
     newsArchive: {
         href: '/news/archive',
         label: 'News archive',
