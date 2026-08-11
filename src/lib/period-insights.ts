@@ -12,6 +12,29 @@ import { GRAMS_PER_OZ, GRAMS_PER_KG, KARATS, KARAT_PURITY } from './conversions'
  * per gram in March 2026") that the headline close alone never would.
  */
 
+/**
+ * Shifts an ISO date by whole calendar months and/or days.
+ *
+ * Clamps the day into the target month rather than letting it overflow — a
+ * plain `Date.setUTCMonth` turns "31 March minus 1 month" into 3 March
+ * (Feb has 28 days, so the extra 3 days roll into March), not 28 February.
+ * Clamping is what "a month ago" means in normal usage.
+ */
+function shiftIsoDate(iso: string, delta: { days?: number; months?: number }): string {
+    let [y, m, d] = iso.split('-').map(Number);
+
+    if (delta.months) {
+        const total = m - 1 + delta.months;
+        y += Math.floor(total / 12);
+        m = ((total % 12) + 12) % 12 + 1;
+        d = Math.min(d, new Date(Date.UTC(y, m, 0)).getUTCDate());
+    }
+
+    const date = new Date(Date.UTC(y, m - 1, d));
+    if (delta.days) date.setUTCDate(date.getUTCDate() + delta.days);
+    return date.toISOString().slice(0, 10);
+}
+
 export interface PeriodInsights {
     /** Sessions that closed higher / lower than the one before. */
     upDays: number;
@@ -35,6 +58,11 @@ export interface PeriodInsights {
     /** The same period one year earlier, when we hold it. */
     yearAgoClose: number | null;
     yearAgoChangePct: number | null;
+    /** Close a week / a month before the period's end, when we hold it. */
+    weekAgoClose: number | null;
+    weekAgoChangePct: number | null;
+    monthAgoClose: number | null;
+    monthAgoChangePct: number | null;
 }
 
 function stdDev(values: number[]): number {
@@ -113,11 +141,16 @@ export function computeInsights(
                 : lastOther / stats.close
             : null;
 
-    // --- Same period a year earlier ----------------------------------------
+    // --- Same period a year, a month and a week earlier ---------------------
     const endDate = stats.period.end;
     const [y, m, d] = endDate.split('-');
     const yearAgoTarget = `${Number(y) - 1}-${m}-${d}`;
     const yearAgoClose = closeOnOrBefore(fullSeries, yearAgoTarget);
+    const monthAgoClose = closeOnOrBefore(fullSeries, shiftIsoDate(endDate, { months: -1 }));
+    const weekAgoClose = closeOnOrBefore(fullSeries, shiftIsoDate(endDate, { days: -7 }));
+
+    const changePctFrom = (reference: number | null) =>
+        reference && reference > 0 ? ((stats.close - reference) / reference) * 100 : null;
 
     return {
         upDays,
@@ -138,9 +171,10 @@ export function computeInsights(
         ratioAverage:
             ratios.length > 0 ? ratios.reduce((s, r) => s + r, 0) / ratios.length : null,
         yearAgoClose,
-        yearAgoChangePct:
-            yearAgoClose && yearAgoClose > 0
-                ? ((stats.close - yearAgoClose) / yearAgoClose) * 100
-                : null,
+        yearAgoChangePct: changePctFrom(yearAgoClose),
+        weekAgoClose,
+        weekAgoChangePct: changePctFrom(weekAgoClose),
+        monthAgoClose,
+        monthAgoChangePct: changePctFrom(monthAgoClose),
     };
 }

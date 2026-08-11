@@ -10,7 +10,8 @@ import {
     slugForKey,
 } from '@/lib/history-periods';
 import { pageMetadata } from '@/lib/seo';
-import { findNotableDays, notableDaySet } from '@/lib/notable-days';
+import { findNotableDays } from '@/lib/notable-days';
+import { computeDayHeadline } from '@/lib/day-headline';
 import type { MetalSymbol } from '@/types';
 
 /**
@@ -74,32 +75,36 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
     const money = (v: number) =>
         v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 
+    // A real "highest since X" / "biggest move" headline, when the day has
+    // one — leads the description the way a news search result does.
+    const headline =
+        period.kind === 'day' ? computeDayHeadline(seriesFor(metal, history), period.key, route.name) : null;
+    const headlinePrefix = headline ? `${headline.text}. ` : '';
+
     const description =
         period.kind === 'day'
             ? stats.isComplete
-                ? `${route.name} closed at ${money(stats.close)} per troy ounce on ${period.label}. See the full day's figures and how it compares with the previous close.`
-                : `${route.name} was last quoted at ${money(stats.close)} per troy ounce on ${period.label}, with trading still in progress. See the latest figures and how they compare with the previous close.`
+                ? `${headlinePrefix}${route.name} closed at ${money(stats.close)} per troy ounce on ${period.label}. See the full day's figures and how it compares with the previous close.`
+                : `${headlinePrefix}${route.name} was last quoted at ${money(stats.close)} per troy ounce on ${period.label}, with trading still in progress. See the latest figures and how they compare with the previous close.`
             : stats.isComplete
               ? `${route.name} averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label}, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics.`
               : `${route.name} has averaged ${money(stats.average)} per troy ounce ${preposition} ${period.label} so far, ranging from ${money(stats.low)} to ${money(stats.high)}. Daily closes, chart and summary statistics, updated as the ${period.kind === 'year' ? 'year' : 'month'} continues.`;
 
     // The headline figure goes in the title: it is what searchers are looking
-    // for, and it makes the result far more clickable than a bare date.
+    // for, and it makes the result far more clickable than a bare date. When
+    // the day has a real story, its compact form leads the title over the
+    // generic "per Ounce" — that's the difference between a result that
+    // reads like every other date page and one that reads like news.
     const title =
         period.kind === 'day'
-            ? `${route.name} Price on ${period.label}: ${money(stats.close)} per Ounce`
+            ? headline
+                ? `${route.name} Price on ${period.label}: ${money(stats.close)} — ${headline.shortText}`
+                : `${route.name} Price on ${period.label}: ${money(stats.close)} per Ounce`
             : `${route.name} Price in ${period.label}: ${money(stats.low)}–${money(stats.high)} per Ounce`;
-
-    // Routine days are noindex,follow: still crawlable and still passing link
-    // equity up to their month, but not competing for indexing against the
-    // month and year pages that can actually rank.
-    const isRoutineDay =
-        period.kind === 'day' && !notableDaySet(seriesFor(metal, history)).has(period.key);
 
     return pageMetadata({
         title,
         description,
-        noIndex: isRoutineDay,
         path: `${route.base}/${period.slug}`,
         keywords: [
             `${name} price ${period.label.toLowerCase()}`,

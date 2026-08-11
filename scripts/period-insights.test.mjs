@@ -31,6 +31,19 @@ function closeOnOrBefore(points, target) {
     return found;
 }
 
+function shiftIsoDate(iso, delta) {
+    let [y, m, d] = iso.split('-').map(Number);
+    if (delta.months) {
+        const total = m - 1 + delta.months;
+        y += Math.floor(total / 12);
+        m = ((total % 12) + 12) % 12 + 1;
+        d = Math.min(d, new Date(Date.UTC(y, m, 0)).getUTCDate());
+    }
+    const date = new Date(Date.UTC(y, m - 1, d));
+    if (delta.days) date.setUTCDate(date.getUTCDate() + delta.days);
+    return date.toISOString().slice(0, 10);
+}
+
 function computeInsights(stats, fullSeries, otherSeries, metal) {
     const points = stats.points;
     const returns = [];
@@ -62,6 +75,9 @@ function computeInsights(stats, fullSeries, otherSeries, metal) {
 
     const [y, m, d] = stats.period.end.split('-');
     const yearAgoClose = closeOnOrBefore(fullSeries, `${Number(y) - 1}-${m}-${d}`);
+    const monthAgoClose = closeOnOrBefore(fullSeries, shiftIsoDate(stats.period.end, { months: -1 }));
+    const weekAgoClose = closeOnOrBefore(fullSeries, shiftIsoDate(stats.period.end, { days: -7 }));
+    const changePctFrom = (ref) => (ref && ref > 0 ? ((stats.close - ref) / ref) * 100 : null);
 
     return {
         upDays, downDays, flatDays, bestDay, worstDay,
@@ -76,8 +92,11 @@ function computeInsights(stats, fullSeries, otherSeries, metal) {
         ratioClose,
         ratioAverage: ratios.length ? ratios.reduce((s, r) => s + r, 0) / ratios.length : null,
         yearAgoClose,
-        yearAgoChangePct: yearAgoClose && yearAgoClose > 0
-            ? ((stats.close - yearAgoClose) / yearAgoClose) * 100 : null,
+        yearAgoChangePct: changePctFrom(yearAgoClose),
+        monthAgoClose,
+        monthAgoChangePct: changePctFrom(monthAgoClose),
+        weekAgoClose,
+        weekAgoChangePct: changePctFrom(weekAgoClose),
     };
 }
 
@@ -172,6 +191,25 @@ test('no earlier history yields a null year-ago comparison', () => {
     const i = computeInsights(stats, gold.slice(1), silver, 'XAU');
     assert.equal(i.yearAgoClose, null);
     assert.equal(i.yearAgoChangePct, null);
+});
+
+test('week-ago comparison resolves to the nearest earlier session', () => {
+    const i = computeInsights(stats, gold, silver, 'XAU');
+    // period.end is 2026-03-31; a week earlier is 2026-03-24 (no point, falls
+    // back to the latest point on or before it: 2026-03-11 at 4200).
+    assert.equal(i.weekAgoClose, 4200);
+    close(i.weekAgoChangePct, 0, 1e-9);
+});
+
+test('month-ago comparison clamps into the shorter month rather than overflowing', () => {
+    // period.end is 2026-03-31; "a month before" must be 2026-02-28 (Feb has
+    // no 31st), not overflow forward into March.
+    assert.equal(shiftIsoDate('2026-03-31', { months: -1 }), '2026-02-28');
+    // Nothing in `gold` falls in Jan/Feb 2026, so this resolves all the way
+    // back to the 2025-03-10 point rather than being null.
+    const i = computeInsights(stats, gold, silver, 'XAU');
+    assert.equal(i.monthAgoClose, 2000);
+    close(i.monthAgoChangePct, ((4200 - 2000) / 2000) * 100, 1e-9);
 });
 
 test('a single-point period does not produce NaN volatility', () => {
