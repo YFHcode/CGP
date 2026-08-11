@@ -37,6 +37,13 @@ function direction(change: number): 'rose' | 'fell' | 'was unchanged' {
     return 'was unchanged';
 }
 
+/** Past participle for use after "has"/"having" — "has rose" is not English. */
+function directionPerfect(change: number): 'risen' | 'fallen' | 'been unchanged' {
+    if (change > 0) return 'risen';
+    if (change < 0) return 'fallen';
+    return 'been unchanged';
+}
+
 /**
  * Builds the Q&A set for a period.
  *
@@ -129,37 +136,43 @@ export function periodQuestions(
 
     // Month and year share the same question shapes.
     const span = period.kind === 'year' ? 'year' : 'month';
+    const complete = stats.isComplete;
+    // "so far" / "to date" qualifiers so an in-progress month or year is never
+    // described as settled — the period is still accumulating data.
+    const soFar = complete ? '' : ' so far';
+    const toDate = complete ? '' : ' to date';
+    const asOf = complete ? '' : ` (through ${formatLongDate(stats.points[stats.points.length - 1].date)})`;
 
     questions.push({
         question: `How did ${lower} perform in ${label}?`,
         answer:
-            `${name} finished ${label} at ${usd(stats.close)} per troy ounce, having ` +
-            `${direction(stats.change)} ${
+            `${name} ${complete ? `finished ${label} at` : `is at`} ${usd(stats.close)} per troy ounce${soFar}, having ` +
+            `${directionPerfect(stats.change)} ${
                 stats.change !== 0 ? `${usd(Math.abs(stats.change))} (${Math.abs(stats.changePct).toFixed(2)}%) ` : ''
-            }over the ${span}. It traded between ${usd(stats.low)} and ${usd(stats.high)} across ` +
-            `${stats.points.length} trading ${stats.points.length === 1 ? 'day' : 'days'}.`,
+            }over the ${span}${toDate}. It has traded between ${usd(stats.low)} and ${usd(stats.high)} across ` +
+            `${stats.points.length} trading ${stats.points.length === 1 ? 'day' : 'days'}${soFar}${asOf}.`,
     });
 
     questions.push({
         question: `What was the average ${lower} price in ${label}?`,
         answer:
-            `The average ${lower} closing price in ${label} was ${usd(stats.average)} per troy ounce, ` +
+            `The average ${lower} closing price in ${label}${soFar} was ${usd(stats.average)} per troy ounce, ` +
             `calculated across all ${stats.points.length} trading ${
                 stats.points.length === 1 ? 'day' : 'days'
-            } in the ${span}.`,
+            } in the ${span}${soFar}${asOf}.`,
     });
 
     questions.push({
         question: `What was the highest ${lower} price in ${label}?`,
         answer:
-            `${name} reached its highest close of ${label} at ${usd(stats.high)} per troy ounce on ` +
+            `${name} reached its highest close ${complete ? `of ${label}` : `of ${label}${soFar}`} at ${usd(stats.high)} per troy ounce on ` +
             `${formatLongDate(stats.highDate)}.`,
     });
 
     questions.push({
         question: `What was the lowest ${lower} price in ${label}?`,
         answer:
-            `The lowest ${lower} close in ${label} was ${usd(stats.low)} per troy ounce on ` +
+            `The lowest ${lower} close in ${label}${soFar} was ${usd(stats.low)} per troy ounce on ` +
             `${formatLongDate(stats.lowDate)}.`,
     });
 
@@ -167,8 +180,8 @@ export function periodQuestions(
         questions.push({
             question: `Did ${lower} go up or down in ${label}?`,
             answer:
-                `${name} ${direction(stats.change)} during ${label}. It entered the ${span} at ` +
-                `${usd(stats.previousClose)} and closed at ${usd(stats.close)}, a change of ` +
+                `${name} ${complete ? direction(stats.change) : `has ${directionPerfect(stats.change)} so far`} during ${label}. It entered the ${span} at ` +
+                `${usd(stats.previousClose)} and ${complete ? 'closed' : 'is currently'} at ${usd(stats.close)}, a change of ` +
                 `${stats.changePct.toFixed(2)}%.`,
         });
     }
@@ -180,9 +193,9 @@ export function periodQuestions(
                 answer:
                     `${name} closed higher on ${insights.upDays} ` +
                     `${insights.upDays === 1 ? 'session' : 'sessions'} and lower on ` +
-                    `${insights.downDays} during ${label}` +
+                    `${insights.downDays} during ${label}${soFar}` +
                     (insights.bestDay && insights.worstDay
-                        ? `. The strongest session was ${formatLongDate(insights.bestDay.date)} ` +
+                        ? `. The strongest session ${complete ? 'was' : 'so far was'} ${formatLongDate(insights.bestDay.date)} ` +
                           `(${insights.bestDay.pct >= 0 ? '+' : ''}${insights.bestDay.pct.toFixed(2)}%) ` +
                           `and the weakest ${formatLongDate(insights.worstDay.date)} ` +
                           `(${insights.worstDay.pct.toFixed(2)}%)`
@@ -194,16 +207,16 @@ export function periodQuestions(
         questions.push({
             question: `How volatile was ${lower} in ${label}?`,
             answer:
-                `Daily closes in ${label} varied with a standard deviation of ` +
+                `Daily closes in ${label}${soFar} varied with a standard deviation of ` +
                 `${insights.volatilityPct.toFixed(2)}% per session, and the peak-to-trough spread ` +
-                `across the ${span} was ${insights.rangePct.toFixed(1)}% ` +
+                `across the ${span}${soFar} was ${insights.rangePct.toFixed(1)}% ` +
                 `(${usd(stats.low)} to ${usd(stats.high)}).`,
         });
 
         questions.push({
             question: `What was the ${lower} price per gram and per kilo in ${label}?`,
             answer:
-                `At the ${label} close of ${usd(stats.close)} per troy ounce, ${lower} worked out ` +
+                `At the ${complete ? `${label} close` : `latest ${label} price`} of ${usd(stats.close)} per troy ounce, ${lower} worked out ` +
                 `at about ${usd(insights.perGram)} per gram and ${usd(insights.perKilo)} per ` +
                 `kilogram. A troy ounce is 31.1034768 grams.`,
         });
@@ -213,7 +226,7 @@ export function periodQuestions(
                 question: `What was the gold to silver ratio in ${label}?`,
                 answer:
                     `The gold-to-silver ratio averaged about ${insights.ratioAverage.toFixed(1)} ` +
-                    `through ${label} and finished the ${span} near ` +
+                    `through ${label}${soFar} and ${complete ? 'finished' : 'stands'} the ${span} near ` +
                     `${insights.ratioClose.toFixed(1)}. A higher ratio means silver is cheap ` +
                     `relative to gold.`,
             });
@@ -224,7 +237,8 @@ export function periodQuestions(
                 question: `How does ${label} compare with the same period a year earlier?`,
                 answer:
                     `${name} was around ${usd(insights.yearAgoClose)} per troy ounce twelve months ` +
-                    `before the end of ${label}. Closing at ${usd(stats.close)} makes that a ` +
+                    `before ${complete ? 'the end of' : 'the latest price in'} ${label}. ` +
+                    `${complete ? 'Closing' : 'Trading'} at ${usd(stats.close)} makes that a ` +
                     `${insights.yearAgoChangePct >= 0 ? 'gain' : 'decline'} of ` +
                     `${Math.abs(insights.yearAgoChangePct).toFixed(1)}% year on year.`,
             });

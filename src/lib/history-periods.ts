@@ -176,6 +176,24 @@ export interface PeriodStats {
     /** Dates of the extremes, for the copy. */
     highDate: string;
     lowDate: string;
+    /**
+     * False for the month/year that "today" falls inside (or any period
+     * extending past today). Copy must not describe such a period as
+     * finished — it is still accumulating data.
+     */
+    isComplete: boolean;
+}
+
+/**
+ * Whether a period has fully elapsed as of `today` (an ISO date, defaulting
+ * to the real current date). A period ending today is still in progress:
+ * the trading day it ends on isn't over yet.
+ */
+export function isPeriodComplete(
+    period: Period,
+    today: string = new Date().toISOString().slice(0, 10)
+): boolean {
+    return period.end < today;
 }
 
 /**
@@ -183,7 +201,11 @@ export interface PeriodStats {
  * Returns null when the period holds no data, so callers can 404 rather than
  * publish an empty page.
  */
-export function getPeriodStats(points: HistoryPoint[], period: Period): PeriodStats | null {
+export function getPeriodStats(
+    points: HistoryPoint[],
+    period: Period,
+    today?: string
+): PeriodStats | null {
     const inRange = points.filter((p) => p.date >= period.start && p.date <= period.end);
     if (inRange.length === 0) return null;
 
@@ -222,6 +244,7 @@ export function getPeriodStats(points: HistoryPoint[], period: Period): PeriodSt
         change,
         changePct,
         previousClose,
+        isComplete: isPeriodComplete(period, today),
     };
 }
 
