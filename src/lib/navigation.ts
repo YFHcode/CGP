@@ -12,6 +12,7 @@ export const MAIN_NAV: NavLink[] = [
     { href: '/silver-price-today', label: 'Silver price' },
     { href: '/gold-price-calculator', label: 'Calculator' },
     { href: '/gold-price-history', label: 'History' },
+    { href: '/gold-price-insights', label: 'Insights' },
     { href: '/news', label: 'News' },
     { href: '/blog', label: 'Blog' },
 ];
@@ -22,6 +23,7 @@ export const TOOLS_NAV: NavLink[] = [
     { href: '/gold-price-per/ounce', label: 'Gold price per ounce' },
     { href: '/gold-to-silver-ratio', label: 'Gold to silver ratio' },
     { href: '/silver-price-calculator', label: 'Silver calculator' },
+    { href: '/silver-price-insights', label: 'Silver price insights' },
     { href: '/gold-price-in/inr', label: 'Gold price in INR' },
     { href: '/gold-price-in/eur', label: 'Gold price in EUR' },
 ];
