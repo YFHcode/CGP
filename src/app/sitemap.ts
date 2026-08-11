@@ -2,10 +2,11 @@ import type { MetadataRoute } from 'next';
 import { getBlogSlugs } from '@/sanity/queries';
 import { SITE_URL } from '@/lib/navigation';
 import { getHistory, getNewsArchive, groupArchiveByMonth } from '@/lib/prices';
-import { listPeriods, slugForKey } from '@/lib/history-periods';
+import { getPeriodStats, listPeriods, parsePeriod, slugForKey } from '@/lib/history-periods';
 import { notableDaySet } from '@/lib/notable-days';
 import { CURRENCY_PAGES } from '@/lib/currency-pages';
 import { UNIT_PAGES } from '@/lib/unit-pages';
+import type { HistoryPoint } from '@/types';
 
 /**
  * Sitemap including blog posts, which were previously omitted entirely.
@@ -49,6 +50,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
+    // The date content in a period actually last changed: its newest data
+    // point, not "now". Reporting every archive page as freshly modified on
+    // every 5-minute sitemap regeneration — including years that stopped
+    // accumulating data long ago — drowns out the signal that would otherwise
+    // tell Google which pages are worth recrawling.
+    function periodLastModified(series: HistoryPoint[], key: string): Date {
+        const period = parsePeriod(key);
+        const stats = period ? getPeriodStats(series, period) : null;
+        const latest = stats?.points[stats.points.length - 1]?.date;
+        return latest ? new Date(`${latest}T00:00:00Z`) : now;
+    }
+
     // Price archive: one page per year, month and day we hold data for.
     const history = await getHistory();
     const archiveRoutes: MetadataRoute.Sitemap = (
@@ -59,13 +72,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ).flatMap(([base, series]) => [
         ...listPeriods(series, 'year').map((period) => ({
             url: `${SITE_URL}/${base}/${slugForKey(period, 'year')}`,
-            lastModified: now,
+            lastModified: periodLastModified(series, period),
             changeFrequency: 'weekly' as const,
             priority: 0.7,
         })),
         ...listPeriods(series, 'month').map((period) => ({
             url: `${SITE_URL}/${base}/${slugForKey(period, 'month')}`,
-            lastModified: now,
+            lastModified: periodLastModified(series, period),
             changeFrequency: 'weekly' as const,
             priority: 0.6,
         })),
