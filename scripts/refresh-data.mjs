@@ -362,8 +362,24 @@ async function fetchQuote(symbol) {
     }
 }
 
+/**
+ * How much history to request from Yahoo.
+ *
+ * `max` reaches back to the start of the contract (~2000 for GC=F/SI=F),
+ * rather than the two years this used to ask for. Depth is the product here:
+ * "10 year silver chart" and "gold prices over time" are real, recurring
+ * searches that two years of data cannot answer, and statistics like monthly
+ * seasonality are meaningless averaged over two samples.
+ *
+ * Re-fetching the full range on every run (rather than just the tail) is
+ * deliberate: it costs one larger response twice a day, and in exchange the
+ * stored series self-heals if it is ever truncated or lost, and upstream
+ * corrections to old sessions propagate instead of being frozen in.
+ */
+const YAHOO_HISTORY_RANGE = 'max';
+
 async function fetchYahooHistory(symbol, yahooSymbol) {
-    const url = `${YAHOO_URL}/${encodeURIComponent(yahooSymbol)}?range=2y&interval=1d`;
+    const url = `${YAHOO_URL}/${encodeURIComponent(yahooSymbol)}?range=${YAHOO_HISTORY_RANGE}&interval=1d`;
     const res = await fetchWithTimeout(url);
     if (!res.ok) {
         throw new Error(`Yahoo ${yahooSymbol}: ${res.status} ${res.statusText}`);

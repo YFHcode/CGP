@@ -4,6 +4,17 @@
 export const GRAMS_PER_OZ = 31.1034768;
 export const GRAMS_PER_KG = 1000;
 
+/**
+ * Traditional South Asian weights, still the working units for a large share
+ * of the world's physical gold trade.
+ *
+ * A tola is 180 troy grains (11.6638038 g) — the same weight sold as a
+ * "bhori" or "vori" in Bangladesh and eastern India. A pavan (also savaran)
+ * is exactly 8 g and is the unit most South Indian jewellery is priced in.
+ */
+export const GRAMS_PER_TOLA = 11.6638038;
+export const GRAMS_PER_PAVAN = 8;
+
 export type WeightUnit = 'oz' | 'gram' | 'kg';
 
 export const WEIGHT_UNITS: WeightUnit[] = ['oz', 'gram', 'kg'];
@@ -106,3 +117,31 @@ export function positionInRange(price: number, low: number, high: number): numbe
     if (![price, low, high].every(Number.isFinite) || high <= low) return Number.NaN;
     return ((price - low) / (high - low)) * 100;
 }
+
+/**
+ * Silver purity is expressed as fineness (parts per thousand), not karat.
+ *
+ * These are the stamps actually found on silver: .925 on sterling jewellery
+ * and flatware, .900 on pre-1965 US "junk silver" coinage, .800 on much
+ * continental European silver. A holder googling "what is my 925 silver
+ * worth" is asking a purity question that no karat table answers.
+ */
+export type SilverFineness = '999' | '958' | '925' | '900' | '800';
+
+export const SILVER_FINENESSES: SilverFineness[] = ['999', '958', '925', '900', '800'];
+
+export const SILVER_PURITY: Record<SilverFineness, number> = {
+    '999': 0.999, // fine silver — bullion bars and rounds
+    '958': 0.958, // Britannia standard
+    '925': 0.925, // sterling — most jewellery and flatware
+    '900': 0.9, // coin silver, e.g. pre-1965 US dimes/quarters
+    '800': 0.8, // common continental European standard
+};
+
+export const SILVER_FINENESS_LABELS: Record<SilverFineness, string> = {
+    '999': 'Fine silver (.999)',
+    '958': 'Britannia (.958)',
+    '925': 'Sterling (.925)',
+    '900': 'Coin silver (.900)',
+    '800': 'Continental (.800)',
+};

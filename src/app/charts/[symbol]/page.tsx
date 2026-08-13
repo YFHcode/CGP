@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react';
 
 import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { LazyTrendChartWrapper, LazyVolatilityChartWrapper } from '@/components/LazyInsightsCharts';
+import { DataExport } from '@/components/DataExport';
 import { AnalysisSection } from '@/components/AnalysisSection';
 import { LastUpdated } from '@/components/LastUpdated';
 import { JsonLd } from '@/components/JsonLd';
@@ -172,13 +173,20 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                             <LazyVolatilityChartWrapper points={volatility} />
                         </div>
 
-                        <Link
-                            href={insightsPath}
-                            className="mt-6 inline-flex items-center gap-2 font-medium text-gold-400 hover:text-gold-300"
-                        >
-                            See the full trend, seasonality and milestone analysis
-                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                        </Link>
+                        <div className="mt-6 flex flex-wrap items-center gap-4">
+                            <Link
+                                href={insightsPath}
+                                className="inline-flex items-center gap-2 font-medium text-gold-400 hover:text-gold-300"
+                            >
+                                See the full trend, seasonality and milestone analysis
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            </Link>
+                            <DataExport
+                                points={series}
+                                filename={`chartgoldprice-${slug}-daily-closes.csv`}
+                                label={`Download ${chart.name.toLowerCase()} history`}
+                            />
+                        </div>
                     </div>
                 </section>
             )}

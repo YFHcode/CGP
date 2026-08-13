@@ -20,10 +20,12 @@ export const MAIN_NAV: NavLink[] = [
 /** Topic pages, linked from the footer so crawlers always reach them. */
 export const TOOLS_NAV: NavLink[] = [
     { href: '/gold-price-per/gram', label: 'Gold price per gram' },
-    { href: '/gold-price-per/ounce', label: 'Gold price per ounce' },
+    { href: '/gold-price-per/tola', label: 'Gold price per tola' },
+    { href: '/gold-price-per/pavan', label: 'Gold price per pavan' },
+    { href: '/silver-price-per/gram', label: 'Silver price per gram' },
     { href: '/gold-to-silver-ratio', label: 'Gold to silver ratio' },
     { href: '/silver-price-calculator', label: 'Silver calculator' },
-    { href: '/silver-price-insights', label: 'Silver price insights' },
+    { href: '/silver-price-history', label: 'Silver price history' },
     { href: '/gold-price-in/inr', label: 'Gold price in INR' },
     { href: '/gold-price-in/eur', label: 'Gold price in EUR' },
 ];
