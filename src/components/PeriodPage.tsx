@@ -5,6 +5,7 @@ import { LazyPriceChart } from './LazyPriceChart';
 import { Breadcrumbs } from './Breadcrumbs';
 import { RelatedLinks, relatedLinks } from './RelatedLinks';
 import { JsonLd } from './JsonLd';
+import { CurrencyValue, CurrencyCode } from './CurrencyValue';
 import { cn } from '@/lib/utils';
 import { breadcrumbSchema, SITE_URL } from '@/lib/seo';
 import { periodQuestions, periodFaqSchema } from '@/lib/period-faq';
@@ -30,16 +31,6 @@ interface PeriodPageProps {
     source: string | null;
     /** Why this day is notable, if it is. Empty for routine days. */
     notableReasons?: string[];
-}
-
-/** Formats a plain USD figure. These pages are USD-only for stable indexing. */
-function usd(value: number): string {
-    return value.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
 }
 
 export function PeriodPage({
@@ -123,7 +114,7 @@ export function PeriodPage({
                         {isSingleDay ? (
                             <>
                                 {route.name} {stats.isComplete ? 'closed' : 'was last quoted'} at{' '}
-                                <strong className="text-white">{usd(stats.close)}</strong> per troy ounce
+                                <strong className="text-white"><CurrencyValue usd={stats.close} /></strong> per troy ounce
                                 {' '}on {period.label}
                                 {!stats.isComplete && ', with trading still in progress'}
                                 {stats.previousClose !== null && (
@@ -131,11 +122,11 @@ export function PeriodPage({
                                         , {isFlat ? 'unchanged from' : isUp ? 'up' : 'down'}{' '}
                                         {!isFlat && (
                                             <>
-                                                {usd(Math.abs(stats.change))} (
+                                                <CurrencyValue usd={Math.abs(stats.change)} /> (
                                                 {Math.abs(stats.changePct).toFixed(2)}%) from
                                             </>
                                         )}{' '}
-                                        the previous close of {usd(stats.previousClose)}
+                                        the previous close of <CurrencyValue usd={stats.previousClose} />
                                     </>
                                 )}
                                 .
@@ -143,22 +134,22 @@ export function PeriodPage({
                         ) : (
                             <>
                                 {route.name} {stats.isComplete ? 'ranged' : 'has ranged'} between{' '}
-                                <strong className="text-white">{usd(stats.low)}</strong> and{' '}
-                                <strong className="text-white">{usd(stats.high)}</strong> per troy ounce
+                                <strong className="text-white"><CurrencyValue usd={stats.low} /></strong> and{' '}
+                                <strong className="text-white"><CurrencyValue usd={stats.high} /></strong> per troy ounce
                                 {stats.isComplete ? ' during' : ' so far in'} {period.label}
                                 {!stats.isComplete && (
                                     <> (through {formatLongDate(stats.points[stats.points.length - 1].date)})</>
                                 )}
-                                , averaging {usd(stats.average)} across{' '}
+                                , averaging <CurrencyValue usd={stats.average} /> across{' '}
                                 {stats.points.length} trading {stats.points.length === 1 ? 'day' : 'days'}
                                 {stats.isComplete
-                                    ? <>. It finished the period at {usd(stats.close)}</>
-                                    : <> so far. It is currently at {usd(stats.close)}</>}
+                                    ? <>. It finished the period at <CurrencyValue usd={stats.close} /></>
+                                    : <> so far. It is currently at <CurrencyValue usd={stats.close} /></>}
                                 {stats.previousClose !== null && (
                                     <>
                                         , {isFlat ? 'level with' : isUp ? 'up' : 'down'}{' '}
                                         {!isFlat && <>{Math.abs(stats.changePct).toFixed(2)}% from</>}{' '}
-                                        {usd(stats.previousClose)}
+                                        <CurrencyValue usd={stats.previousClose} />
                                     </>
                                 )}
                                 .
@@ -192,25 +183,25 @@ export function PeriodPage({
                                     : stats.isComplete
                                       ? 'Period close'
                                       : 'Latest close (period in progress)',
-                                value: usd(stats.close),
+                                value: <CurrencyValue usd={stats.close} />,
                             },
                             {
                                 label: stats.isComplete ? 'High' : 'High so far',
-                                value: usd(stats.high),
+                                value: <CurrencyValue usd={stats.high} />,
                                 sub: formatLongDate(stats.highDate),
                             },
                             {
                                 label: stats.isComplete ? 'Low' : 'Low so far',
-                                value: usd(stats.low),
+                                value: <CurrencyValue usd={stats.low} />,
                                 sub: formatLongDate(stats.lowDate),
                             },
                             {
                                 label: isSingleDay ? 'Previous close' : stats.isComplete ? 'Average' : 'Average so far',
                                 value: isSingleDay
                                     ? stats.previousClose !== null
-                                        ? usd(stats.previousClose)
+                                        ? <CurrencyValue usd={stats.previousClose} />
                                         : '—'
-                                    : usd(stats.average),
+                                    : <CurrencyValue usd={stats.average} />,
                             },
                         ].map((item) => (
                             <div
@@ -235,9 +226,14 @@ export function PeriodPage({
                         )}
                     >
                         <TrendIcon className="h-4 w-4" aria-hidden="true" />
-                        {isFlat
-                            ? 'No change'
-                            : `${isUp ? 'Up' : 'Down'} ${usd(Math.abs(stats.change))} (${Math.abs(stats.changePct).toFixed(2)}%)`}
+                        {isFlat ? (
+                            'No change'
+                        ) : (
+                            <>
+                                {isUp ? 'Up' : 'Down'} <CurrencyValue usd={Math.abs(stats.change)} /> (
+                                {Math.abs(stats.changePct).toFixed(2)}%)
+                            </>
+                        )}
                         <span className="font-normal text-zinc-400">
                             {stats.previousClose !== null ? 'vs previous close' : 'over the period'}
                         </span>
@@ -259,15 +255,15 @@ export function PeriodPage({
                             <dl className="space-y-2 text-sm">
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-zinc-400">Per troy ounce</dt>
-                                    <dd className="font-medium text-zinc-100">{usd(stats.close)}</dd>
+                                    <dd className="font-medium text-zinc-100"><CurrencyValue usd={stats.close} /></dd>
                                 </div>
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-zinc-400">Per gram</dt>
-                                    <dd className="font-medium text-zinc-100">{usd(insights.perGram)}</dd>
+                                    <dd className="font-medium text-zinc-100"><CurrencyValue usd={insights.perGram} /></dd>
                                 </div>
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-zinc-400">Per kilogram</dt>
-                                    <dd className="font-medium text-zinc-100">{usd(insights.perKilo)}</dd>
+                                    <dd className="font-medium text-zinc-100"><CurrencyValue usd={insights.perKilo} /></dd>
                                 </div>
                                 {insights.ratioClose !== null && (
                                     <div className="flex justify-between gap-4 border-t border-white/5 pt-2">
@@ -295,7 +291,7 @@ export function PeriodPage({
                                                 </span>
                                             </dt>
                                             <dd className="font-medium text-zinc-100">
-                                                {usd(entry.value)}
+                                                <CurrencyValue usd={entry.value} />
                                             </dd>
                                         </div>
                                     ))}
@@ -355,7 +351,7 @@ export function PeriodPage({
                                         {pct(insights.weekAgoChangePct)}
                                     </dd>
                                     <dd className="mt-1 text-xs text-zinc-400">
-                                        from {usd(insights.weekAgoClose)}
+                                        from <CurrencyValue usd={insights.weekAgoClose} />
                                     </dd>
                                 </div>
                             )}
@@ -366,7 +362,7 @@ export function PeriodPage({
                                         {pct(insights.monthAgoChangePct)}
                                     </dd>
                                     <dd className="mt-1 text-xs text-zinc-400">
-                                        from {usd(insights.monthAgoClose)}
+                                        from <CurrencyValue usd={insights.monthAgoClose} />
                                     </dd>
                                 </div>
                             )}
@@ -397,7 +393,7 @@ export function PeriodPage({
                             {insights.yearAgoClose !== null && insights.yearAgoChangePct !== null && (
                                 <p>
                                     Twelve months earlier {name} traded around{' '}
-                                    {usd(insights.yearAgoClose)}, making this a{' '}
+                                    <CurrencyValue usd={insights.yearAgoClose} />, making this a{' '}
                                     {pct(insights.yearAgoChangePct)} move year on year.
                                 </p>
                             )}
@@ -430,7 +426,7 @@ export function PeriodPage({
                                 <thead className="sticky top-0 bg-zinc-900">
                                     <tr className="border-b border-white/10">
                                         <th scope="col" className="px-4 py-3 font-semibold text-white">Date</th>
-                                        <th scope="col" className="px-4 py-3 font-semibold text-white">Close (USD/oz)</th>
+                                        <th scope="col" className="px-4 py-3 font-semibold text-white">Close (<CurrencyCode />/oz)</th>
                                         <th scope="col" className="px-4 py-3 font-semibold text-white">Change</th>
                                     </tr>
                                 </thead>
@@ -453,7 +449,7 @@ export function PeriodPage({
                                                         </Link>
                                                     )}
                                                 </td>
-                                                <td className="px-4 py-2">{usd(point.close)}</td>
+                                                <td className="px-4 py-2"><CurrencyValue usd={point.close} /></td>
                                                 <td
                                                     className={cn(
                                                         'px-4 py-2',
@@ -466,9 +462,14 @@ export function PeriodPage({
                                                                 : 'text-zinc-400'
                                                     )}
                                                 >
-                                                    {delta === null
-                                                        ? '—'
-                                                        : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${usd(Math.abs(delta))}`}
+                                                    {delta === null ? (
+                                                        '—'
+                                                    ) : (
+                                                        <>
+                                                            {delta > 0 ? '+' : delta < 0 ? '−' : ''}
+                                                            <CurrencyValue usd={Math.abs(delta)} />
+                                                        </>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -489,9 +490,12 @@ export function PeriodPage({
                 even a single-day page substantive unique content. */}
             <section aria-labelledby="faq-heading" className="bg-black py-10">
                 <div className="container mx-auto px-4">
-                    <h2 id="faq-heading" className="mb-6 text-2xl font-bold text-white">
+                    <h2 id="faq-heading" className="mb-2 text-2xl font-bold text-white">
                         {route.name} price {isSingleDay ? 'on' : 'in'} {period.label}: common questions
                     </h2>
+                    <p className="mb-6 text-xs text-zinc-500">
+                        Figures in this section are shown in USD, independent of the currency selected above.
+                    </p>
                     <div className="mx-auto max-w-4xl divide-y divide-white/5">
                         {questions.map((entry) => (
                             <div key={entry.question} className="py-5">
