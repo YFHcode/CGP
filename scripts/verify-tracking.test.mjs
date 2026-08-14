@@ -5,6 +5,8 @@ import {
     extractGtmId,
     extractMeasurementIds,
     extractInlineMeasurementIds,
+    extractTrackingIds,
+    extractTagTypes,
     describeError,
 } from './verify-tracking.mjs';
 
@@ -41,6 +43,40 @@ test('extractMeasurementIds returns an empty array when no GA4 tag is compiled i
 test('extractInlineMeasurementIds finds a direct gtag.js reference in page HTML', () => {
     const html = `<script src="https://www.googletagmanager.com/gtag/js?id=G-630K6DQSNK"></script>`;
     assert.deepEqual(extractInlineMeasurementIds(html), ['G-630K6DQSNK']);
+});
+
+test('extractTrackingIds finds a GT- Google tag that a G-only check would miss', () => {
+    // The false-negative mode this exists to close: a container configured
+    // with a Google tag carries no G- measurement ID at all, so reporting
+    // "no GA4 ID" as a hard failure would be wrong.
+    const gtmJs = `code,"GT-ABC1234",more`;
+    assert.deepEqual(extractTrackingIds(gtmJs), { googleTag: ['GT-ABC1234'] });
+    assert.deepEqual(extractMeasurementIds(gtmJs), []);
+});
+
+test('extractTrackingIds groups every Google product ID by kind', () => {
+    const gtmJs = `"G-630K6DQSNK","AW-12345678","UA-1234567-1","DC-9876543"`;
+    assert.deepEqual(extractTrackingIds(gtmJs), {
+        ga4: ['G-630K6DQSNK'],
+        ads: ['AW-12345678'],
+        universalAnalytics: ['UA-1234567-1'],
+        floodlight: ['DC-9876543'],
+    });
+});
+
+test('extractTrackingIds returns nothing for a container with no Google tags', () => {
+    assert.deepEqual(extractTrackingIds('function(){/* empty container */}'), {});
+});
+
+test('extractTagTypes identifies GA4 tag templates by their internal token', () => {
+    assert.deepEqual(extractTagTypes('...,"gaawc",...,"gaawe",...'), [
+        'GA4 Configuration',
+        'GA4 Event',
+    ]);
+});
+
+test('extractTagTypes finds nothing in a container with no Google tag templates', () => {
+    assert.deepEqual(extractTagTypes('var a="html";var b="img";'), []);
 });
 
 test('describeError surfaces the nested cause behind a generic "fetch failed"', () => {

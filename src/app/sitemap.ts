@@ -7,6 +7,7 @@ import { notableDaySet } from '@/lib/notable-days';
 import { CURRENCY_PAGES } from '@/lib/currency-pages';
 import { UNIT_PAGES } from '@/lib/unit-pages';
 import { LOCALE_PAGES } from '@/lib/locale-pages';
+import { COINS } from '@/lib/coins';
 import type { HistoryPoint } from '@/types';
 
 /**
@@ -123,6 +124,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             lastModified: now,
             changeFrequency: 'daily' as const,
             priority: 0.85,
+        })),
+        {
+            url: `${SITE_URL}/melt-value`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.9,
+        },
+        ...COINS.map((coin) => ({
+            url: `${SITE_URL}/melt-value/${coin.slug}`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.8,
         })),
     ];
 

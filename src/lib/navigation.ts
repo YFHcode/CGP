@@ -98,6 +98,17 @@ export const NAV_GROUPS: NavGroup[] = [
                 links: [
                     { href: '/gold-price-calculator', label: 'Gold value calculator' },
                     { href: '/silver-price-calculator', label: 'Silver value calculator' },
+                    { href: '/melt-value', label: 'Coin melt value calculator' },
+                ],
+            },
+            {
+                title: 'Coins',
+                links: [
+                    { href: '/melt-value/silver-quarter', label: 'Silver quarter value' },
+                    { href: '/melt-value/silver-dime', label: 'Silver dime value' },
+                    { href: '/melt-value/morgan-silver-dollar', label: 'Morgan dollar value' },
+                    { href: '/melt-value/krugerrand', label: 'Krugerrand value' },
+                    { href: '/melt-value/gold-sovereign', label: 'Gold sovereign value' },
                 ],
             },
             {
