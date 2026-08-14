@@ -145,3 +145,38 @@ export const SILVER_FINENESS_LABELS: Record<SilverFineness, string> = {
     '900': 'Coin silver (.900)',
     '800': 'Continental (.800)',
 };
+
+/**
+ * UK gold hallmarking uses a millesimal fineness number stamped into the
+ * metal — 375, 585, 750, 916, 999 — not the karat figure this site's other
+ * gold pages quote. British jewellery is sold and priced by these marks, so
+ * "what is 916 gold worth" and "9 carat gold price" are the same question in
+ * two different vocabularies, and a page answering only in karat misses the
+ * one most UK buyers actually search.
+ *
+ * These are the standards recognised under the UK Hallmarking Act 1973 and
+ * struck by the four British Assay Offices (London, Birmingham, Sheffield,
+ * Edinburgh); 990 is the mark used for some Britannia coinage and commemorative
+ * pieces rather than everyday jewellery.
+ */
+export type GoldHallmark = '375' | '585' | '750' | '916' | '990' | '999';
+
+export const GOLD_HALLMARKS: GoldHallmark[] = ['375', '585', '750', '916', '990', '999'];
+
+export const GOLD_HALLMARK_PURITY: Record<GoldHallmark, number> = {
+    '375': 0.375, // 9 carat — the most common British jewellery standard
+    '585': 0.585, // 14 carat — less common in the UK than 9ct or 18ct
+    '750': 0.75, // 18 carat
+    '916': 0.916, // 22 carat — wedding rings, coins
+    '990': 0.99, // 24 carat, commemorative/coin issues
+    '999': 0.999, // 24 carat, fine gold bullion
+};
+
+export const GOLD_HALLMARK_LABELS: Record<GoldHallmark, string> = {
+    '375': '375 (9 carat)',
+    '585': '585 (14 carat)',
+    '750': '750 (18 carat)',
+    '916': '916 (22 carat)',
+    '990': '990 (24 carat, commemorative)',
+    '999': '999 (24 carat, fine gold)',
+};

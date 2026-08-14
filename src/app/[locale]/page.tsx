@@ -12,7 +12,7 @@ import { periodFaqSchema } from '@/lib/period-faq';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 
 /**
- * Localized landing pages at /nl, /uk, /de.
+ * Localized landing pages at /nl, /ua, /de.
  *
  * Each is the counterpart of an English page and declares hreflang both ways,
  * so Google serves the right language rather than treating them as duplicates
@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
     // hreflang: every localized page points at the others covering the same
     // underlying topic, and at the English original. /nl covers silver while
-    // /uk and /de cover gold, so the cluster is grouped by canonical English
+    // /ua and /de cover gold, so the cluster is grouped by canonical English
     // path rather than lumping all three locales together as if they were
     // translations of one page.
     return {
