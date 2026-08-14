@@ -39,7 +39,12 @@ export function NewsCard({ item, imageHeight = 176, priority = false }: NewsCard
                 <h3 className="mb-2 line-clamp-2 text-lg font-bold text-white transition-colors group-hover:text-gold-300">
                     {item.title}
                 </h3>
-                <p className="line-clamp-3 text-sm text-zinc-300">{item.snippet}</p>
+                {/* Archive-backed items carry link metadata only — no snippet
+                    is stored, by design — so render nothing rather than an
+                    empty paragraph that leaves a ragged gap in the card. */}
+                {item.snippet && (
+                    <p className="line-clamp-3 text-sm text-zinc-300">{item.snippet}</p>
+                )}
             </div>
         </a>
     );

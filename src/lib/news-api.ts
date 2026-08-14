@@ -1,6 +1,7 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
 import type { NewsItem } from '@/types';
+import { getNewsArchive, type NewsArchiveEntry } from './prices';
 
 // Kept in source deliberately (free tier). Env var wins when present.
 const API_KEY =
@@ -54,14 +55,65 @@ const cachedNews = unstable_cache(fetchNews, ['news-gold-us'], {
 });
 
 /**
- * Throwing inside the cached function keeps failures out of the cache, so a
- * transient provider error can't blank the news section for three hours.
+ * Below this, treat the live response as degraded and top it up from the
+ * archive. A provider that returns one usable story is not an outage — it
+ * throws nothing and caches happily — so a plain try/catch never catches it.
+ */
+const MIN_LIVE_ITEMS = 4;
+
+/** The archive stores link metadata only, so there is no snippet to carry over. */
+function archiveToNewsItems(entries: NewsArchiveEntry[]): NewsItem[] {
+    return entries.map((entry) => ({
+        link: entry.link,
+        title: entry.title,
+        source: entry.source,
+        date: entry.reportedDate ?? new Date(entry.seenAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'UTC',
+        }),
+        published_at: entry.reportedDate ?? entry.seenAt,
+        snippet: '',
+    }));
+}
+
+/**
+ * Latest news, live where possible and backfilled from the committed archive.
+ *
+ * The live provider is a free tier with a monthly search cap. When that cap is
+ * reached it does not fail loudly — it returns a thin result, which rendered
+ * as a single lonely card on the homepage. Since every story we have ever
+ * shown is already committed to data/news-archive.json by the scheduled
+ * refresh, there is no reason to show one card when fifty are on disk.
+ *
+ * Live items are kept first and deduped by link, so fresh stories still lead
+ * and the archive only fills the tail.
  */
 export async function getNews(): Promise<NewsItem[]> {
+    let live: NewsItem[] = [];
+
     try {
-        return await cachedNews();
+        live = await cachedNews();
     } catch (error) {
         console.error('[NewsAPI] unavailable:', error instanceof Error ? error.message : error);
-        return [];
+    }
+
+    if (live.length >= MIN_LIVE_ITEMS) return live;
+
+    try {
+        const { items } = await getNewsArchive();
+        const seen = new Set(live.map((item) => item.link));
+        const backfill = archiveToNewsItems(items).filter((item) => !seen.has(item.link));
+
+        if (backfill.length > 0) {
+            console.warn(
+                `[NewsAPI] only ${live.length} live item(s); backfilling ${backfill.length} from the archive`
+            );
+        }
+        return [...live, ...backfill];
+    } catch (error) {
+        console.error('[NewsAPI] archive fallback failed:', error instanceof Error ? error.message : error);
+        return live;
     }
 }
