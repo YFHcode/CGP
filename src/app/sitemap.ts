@@ -139,12 +139,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         })),
     ];
 
-    const localeRoutes: MetadataRoute.Sitemap = LOCALE_PAGES.map((page) => ({
-        url: `${SITE_URL}/${page.locale}`,
-        lastModified: now,
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-    }));
+    const localeRoutes: MetadataRoute.Sitemap = [
+        // Not in LOCALE_PAGES: /uk is the English-language British page
+        // (src/app/uk/page.tsx), not a translated counterpart of one.
+        {
+            url: `${SITE_URL}/uk`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.85,
+        },
+        ...LOCALE_PAGES.map((page) => ({
+            url: `${SITE_URL}/${page.locale}`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.7,
+        })),
+    ];
 
     const { items } = await getNewsArchive();
     const newsRoutes: MetadataRoute.Sitemap = [...groupArchiveByMonth(items).keys()].map(

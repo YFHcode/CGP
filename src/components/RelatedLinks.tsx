@@ -118,6 +118,16 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         label: 'Gold price in INR',
         description: 'Gold in Indian rupees per gram, tola and 10 grams, with karat rates.',
     },
+    goldInGbp: {
+        href: '/gold-price-in/gbp',
+        label: 'Gold price in GBP',
+        description: 'Gold in pounds sterling per gram, ounce and kilogram.',
+    },
+    goldUk: {
+        href: '/uk',
+        label: 'Gold price UK',
+        description: 'UK gold price per gram and ounce, with hallmark purity (375, 585, 750, 916).',
+    },
     goldArchive: {
         href: '/gold-price',
         label: 'Gold price archive',

@@ -57,6 +57,7 @@ export const NAV_GROUPS: NavGroup[] = [
             {
                 title: 'By currency',
                 links: [
+                    { href: '/uk', label: 'Gold price UK' },
                     { href: '/gold-price-in/inr', label: 'Gold price in INR' },
                     { href: '/gold-price-in/eur', label: 'Gold price in EUR' },
                     { href: '/gold-price-in/gbp', label: 'Gold price in GBP' },

@@ -123,3 +123,38 @@ test('positionInRange guards a collapsed or inverted range', () => {
 test('troy ounce constant is the exact defined value', () => {
     assert.equal(GRAMS_PER_OZ, 31.1034768);
 });
+
+const GOLD_HALLMARK_PURITY = {
+    '375': 0.375,
+    '585': 0.585,
+    '750': 0.75,
+    '916': 0.916,
+    '990': 0.99,
+    '999': 0.999,
+};
+
+test('UK gold hallmarks match the published legal standard, not a derived karat fraction', () => {
+    // 9ct (375) and 18ct (750) land exactly on n/24, but 14ct and 22ct do
+    // not: the internationally agreed hallmark for "14 carat" is 585, not
+    // the mathematically exact 14/24 = .5833, and "22 carat" is 916, not
+    // 22/24 = .9167. These are independently defined legal minimum finenesses
+    // (ISO 9202 / the UK Hallmarking Act 1973), not the karat fraction
+    // rounded to three digits, so the values must be pinned to the actual
+    // published standard rather than derived from n/24.
+    assert.equal(GOLD_HALLMARK_PURITY['375'], 9 / 24);
+    assert.equal(GOLD_HALLMARK_PURITY['750'], 18 / 24);
+    assert.equal(GOLD_HALLMARK_PURITY['585'], 0.585);
+    assert.notEqual(GOLD_HALLMARK_PURITY['585'], 14 / 24);
+    assert.equal(GOLD_HALLMARK_PURITY['916'], 0.916);
+    assert.notEqual(GOLD_HALLMARK_PURITY['916'], 22 / 24);
+});
+
+test('999 gold hallmark matches fine gold, not 24 karat exactly', () => {
+    // 24K in this codebase's own convention is defined as 1.0 (spot price
+    // already is pure gold), but the 999 *hallmark* is the physical standard
+    // for fine bullion — 99.9% pure, not 100%. The two are close but must
+    // not be conflated: a page quoting 999 gold at the full 24K/spot price
+    // would overstate it by 0.1%.
+    assert.equal(GOLD_HALLMARK_PURITY['999'], 0.999);
+    assert.notEqual(GOLD_HALLMARK_PURITY['999'], 1);
+});

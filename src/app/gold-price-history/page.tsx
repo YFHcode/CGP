@@ -18,7 +18,7 @@ const baseMetadata = pageMetadata({
   keywords: ['gold price history', 'historical gold prices', 'gold price chart history', 'gold price trends'],
 });
 
-// Reciprocal hreflang back to the /uk and /de locale pages, which are this
+// Reciprocal hreflang back to the /ua and /de locale pages, which are this
 // page's localized counterparts — without this, only they pointed at the
 // English original, and Google discounts one-way hreflang.
 export const metadata: Metadata = {

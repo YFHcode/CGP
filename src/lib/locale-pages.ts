@@ -76,7 +76,13 @@ export const LOCALE_PAGES: LocalePageConfig[] = [
         ],
     },
     {
-        locale: 'uk',
+        // URL segment is 'ua' (Ukraine), not 'uk' (the ISO 639-1 code for the
+        // Ukrainian *language*, which `lang` correctly is). /uk was a genuine
+        // collision: "gold price uk" search intent is British, and this page
+        // was serving it Ukrainian-language content about gold. /uk is now a
+        // dedicated English-language British page (src/app/uk/page.tsx);
+        // this one moved to the unambiguous /ua instead.
+        locale: 'ua',
         lang: 'uk',
         metal: 'XAU',
         title: 'Ціна золота — графік у доларах за унцію та грам',
