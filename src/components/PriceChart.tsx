@@ -16,14 +16,23 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { formatMetalPrice } from '@/lib/currencies';
 import type { HistoryPoint, MetalSymbol } from '@/types';
 
-type TimeRange = '1W' | '1M' | '6M' | '1Y' | 'MAX';
+type TimeRange = '1W' | '1M' | '6M' | '1Y' | '5Y' | '10Y' | 'MAX';
 
-/** Trailing window in days. `null` means every point we hold. */
+/**
+ * Trailing window in days. `null` means every point we hold.
+ *
+ * The multi-year windows exist because "10 year gold chart" and
+ * "silver price over time" are recurring searches that a one-year maximum
+ * cannot answer. A range with no data yet still renders — sliceRange falls
+ * back to the tail — so these degrade quietly while history accumulates.
+ */
 const RANGE_DAYS: Record<TimeRange, number | null> = {
     '1W': 7,
     '1M': 30,
     '6M': 180,
     '1Y': 365,
+    '5Y': 365 * 5,
+    '10Y': 365 * 10,
     MAX: null,
 };
 
@@ -99,7 +108,10 @@ export function PriceChart({
         const sliced = downsample(sliceRange(series, timeRange));
         // Day-level labels are unreadable across years, so long ranges switch to
         // month + year.
-        const isLongRange = timeRange === 'MAX' || timeRange === '1Y' || timeRange === '6M';
+        // Derived from the window rather than an explicit list, so adding a
+        // range can't silently leave day-level labels on a multi-year axis.
+        const days = RANGE_DAYS[timeRange];
+        const isLongRange = days === null || days >= 180;
 
         return sliced.map((point) => ({
             date: point.date,

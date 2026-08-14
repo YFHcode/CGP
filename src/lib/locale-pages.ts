@@ -1,0 +1,155 @@
+import type { MetalSymbol } from '@/types';
+
+/**
+ * Localized landing pages for locales with demonstrated, unserved demand.
+ *
+ * These exist because Search Console showed real recurring queries in Dutch
+ * ("zilverprijs grafiek 10 jaar"), Ukrainian ("ціна золота графік") and
+ * German ("goldpreis euro") landing on English pages ranked 55-82 — i.e.
+ * people looking for exactly what this site has, in a language it doesn't
+ * speak.
+ *
+ * Scope is deliberately narrow: one focused page per locale, targeting the
+ * specific intent observed, rather than a machine-translated mirror of the
+ * whole site. Google treats bulk auto-translated pages published without
+ * human review as spam, so breadth here would be a liability, not a win.
+ * Each block below still needs a native speaker's read before it earns
+ * trust — the figures are computed, but the prose is not native-written.
+ */
+
+export interface LocalePageConfig {
+    /** URL segment and hreflang code. */
+    locale: string;
+    /** BCP-47 tag for the <html lang> attribute. */
+    lang: string;
+    /** Which metal this locale's observed demand is actually about. */
+    metal: MetalSymbol;
+    title: string;
+    description: string;
+    heading: string;
+    intro: string;
+    chartTitle: string;
+    /** Label for the link back to the full English site. */
+    englishLink: string;
+    /** The English page this is the localized counterpart of. */
+    canonicalEnglishPath: string;
+    faq: { question: string; answer: string }[];
+}
+
+export const LOCALE_PAGES: LocalePageConfig[] = [
+    {
+        locale: 'nl',
+        lang: 'nl',
+        metal: 'XAG',
+        title: 'Zilverprijs Grafiek — Actuele Zilverprijs per Ounce en Gram',
+        description:
+            'Actuele zilverprijs met historische grafieken van één week tot de volledige reeks, ' +
+            'plus jaarrendementen en de zilverprijs per gram, ounce en kilo.',
+        heading: 'Zilverprijs grafiek',
+        intro:
+            'De actuele zilverprijs per troy ounce en per gram, met historische grafieken vanaf ' +
+            'één week tot de volledige beschikbare reeks. Alle cijfers komen uit onze eigen ' +
+            'vastgelegde koersreeks.',
+        chartTitle: 'Historische zilverkoersen',
+        englishLink: 'Bekijk de volledige site in het Engels',
+        canonicalEnglishPath: '/silver-price-history',
+        faq: [
+            {
+                question: 'Wat is de zilverprijs vandaag?',
+                answer:
+                    'De actuele zilverprijs staat bovenaan deze pagina, in Amerikaanse dollar per ' +
+                    'troy ounce en per gram. Een troy ounce is 31,1034768 gram.',
+            },
+            {
+                question: 'Hoe bekijk ik de zilverprijs over 10 jaar?',
+                answer:
+                    'Gebruik de knoppen boven de grafiek om de periode te wijzigen — van 1 week tot ' +
+                    'de volledige reeks die wij vastleggen.',
+            },
+            {
+                question: 'Wat is zilver van 925 waard?',
+                answer:
+                    'Sterling zilver (925) bestaat voor 92,5% uit zuiver zilver, dus de smeltwaarde ' +
+                    'is 92,5% van de zuivere zilverprijs bij hetzelfde gewicht.',
+            },
+        ],
+    },
+    {
+        locale: 'uk',
+        lang: 'uk',
+        metal: 'XAU',
+        title: 'Ціна золота — графік у доларах за унцію та грам',
+        description:
+            'Актуальна ціна золота з історичними графіками від одного тижня до повного архіву, ' +
+            'а також ціна золота за грам, унцію та кілограм.',
+        heading: 'Ціна золота: графік',
+        intro:
+            'Актуальна ціна золота за тройську унцію та за грам з історичними графіками — від ' +
+            'одного тижня до повного доступного архіву. Усі цифри обчислені з нашого власного ' +
+            'записаного ряду котирувань.',
+        chartTitle: 'Історичні котирування золота',
+        englishLink: 'Переглянути повний сайт англійською',
+        canonicalEnglishPath: '/gold-price-history',
+        faq: [
+            {
+                question: 'Яка ціна золота сьогодні?',
+                answer:
+                    'Поточна ціна золота вказана вгорі цієї сторінки — у доларах США за тройську ' +
+                    'унцію та за грам. Тройська унція дорівнює 31,1034768 грама.',
+            },
+            {
+                question: 'Як подивитися графік ціни золота за кілька років?',
+                answer:
+                    'Скористайтеся кнопками над графіком, щоб змінити період — від одного тижня до ' +
+                    'усього доступного архіву.',
+            },
+            {
+                question: 'Скільки коштує золото 585 проби за грам?',
+                answer:
+                    'Золото 585 проби містить 58,5% чистого золота, тому його вартість за грам ' +
+                    'становить 58,5% від ціни чистого золота за грам.',
+            },
+        ],
+    },
+    {
+        locale: 'de',
+        lang: 'de',
+        metal: 'XAU',
+        title: 'Goldpreis in Euro — Aktueller Kurs pro Unze und Gramm',
+        description:
+            'Aktueller Goldpreis mit historischen Charts von einer Woche bis zum vollständigen ' +
+            'Archiv, dazu der Goldpreis pro Gramm, Unze und Kilogramm.',
+        heading: 'Goldpreis',
+        intro:
+            'Der aktuelle Goldpreis pro Feinunze und pro Gramm, mit historischen Charts von einer ' +
+            'Woche bis zum vollständigen verfügbaren Archiv. Alle Zahlen stammen aus unserer ' +
+            'eigenen aufgezeichneten Kursreihe.',
+        chartTitle: 'Historische Goldkurse',
+        englishLink: 'Die vollständige Seite auf Englisch ansehen',
+        canonicalEnglishPath: '/gold-price-history',
+        faq: [
+            {
+                question: 'Wie hoch ist der Goldpreis heute?',
+                answer:
+                    'Der aktuelle Goldpreis steht oben auf dieser Seite — in US-Dollar pro Feinunze ' +
+                    'und pro Gramm. Eine Feinunze entspricht 31,1034768 Gramm.',
+            },
+            {
+                question: 'Wie sehe ich den Goldpreis in Euro?',
+                answer:
+                    'Über die Währungsauswahl oben rechts lässt sich die Anzeige auf Euro umstellen; ' +
+                    'alle Preise auf der Seite werden dann in Euro umgerechnet.',
+            },
+            {
+                question: 'Was ist ein Gramm 585er Gold wert?',
+                answer:
+                    '585er Gold (14 Karat) besteht zu 58,5% aus reinem Gold, der Materialwert pro ' +
+                    'Gramm beträgt also 58,5% des Feingoldpreises.',
+            },
+        ],
+    },
+];
+
+export function findLocalePage(locale: string): LocalePageConfig | undefined {
+    return LOCALE_PAGES.find((page) => page.locale === locale.toLowerCase());
+}

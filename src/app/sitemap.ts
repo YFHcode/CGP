@@ -6,6 +6,7 @@ import { getPeriodStats, listPeriods, parsePeriod, slugForKey } from '@/lib/hist
 import { notableDaySet } from '@/lib/notable-days';
 import { CURRENCY_PAGES } from '@/lib/currency-pages';
 import { UNIT_PAGES } from '@/lib/unit-pages';
+import { LOCALE_PAGES } from '@/lib/locale-pages';
 import type { HistoryPoint } from '@/types';
 
 /**
@@ -26,6 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${SITE_URL}/charts/gold`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/charts/silver`, changeFrequency: 'daily', priority: 0.9 },
         { url: `${SITE_URL}/gold-price-history`, changeFrequency: 'daily', priority: 0.85 },
+        { url: `${SITE_URL}/silver-price-history`, changeFrequency: 'daily', priority: 0.85 },
         { url: `${SITE_URL}/gold-price-insights`, changeFrequency: 'daily', priority: 0.85 },
         { url: `${SITE_URL}/silver-price-insights`, changeFrequency: 'daily', priority: 0.8 },
         { url: `${SITE_URL}/gold-price`, changeFrequency: 'daily', priority: 0.85 },
@@ -110,6 +112,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'daily' as const,
             priority: 0.85,
         })),
+        ...UNIT_PAGES.map((page) => ({
+            url: `${SITE_URL}/silver-price-per/${page.slug}`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.8,
+        })),
         ...CURRENCY_PAGES.map((page) => ({
             url: `${SITE_URL}/gold-price-in/${page.slug}`,
             lastModified: now,
@@ -117,6 +125,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.85,
         })),
     ];
+
+    const localeRoutes: MetadataRoute.Sitemap = LOCALE_PAGES.map((page) => ({
+        url: `${SITE_URL}/${page.locale}`,
+        lastModified: now,
+        changeFrequency: 'daily' as const,
+        priority: 0.7,
+    }));
 
     const { items } = await getNewsArchive();
     const newsRoutes: MetadataRoute.Sitemap = [...groupArchiveByMonth(items).keys()].map(
@@ -128,5 +143,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         })
     );
 
-    return [...staticRoutes, ...topicRoutes, ...postRoutes, ...archiveRoutes, ...newsRoutes];
+    return [
+        ...staticRoutes,
+        ...topicRoutes,
+        ...localeRoutes,
+        ...postRoutes,
+        ...archiveRoutes,
+        ...newsRoutes,
+    ];
 }

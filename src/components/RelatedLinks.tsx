@@ -138,6 +138,21 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         label: 'Silver price insights',
         description: 'Moving averages, volatility, drawdowns, annual returns, seasonality and records.',
     },
+    silverHistory: {
+        href: '/silver-price-history',
+        label: 'Silver price history',
+        description: 'Historical silver charts, annual returns and the deepest drawdowns on record.',
+    },
+    silverPerGram: {
+        href: '/silver-price-per/gram',
+        label: 'Silver price per gram',
+        description: 'Sterling (.925), fine (.999) and coin-silver values by weight.',
+    },
+    goldPerTola: {
+        href: '/gold-price-per/tola',
+        label: 'Gold price per tola',
+        description: 'The tola and bhori rate used across India, Pakistan, Bangladesh and the Gulf.',
+    },
     newsArchive: {
         href: '/news/archive',
         label: 'News archive',

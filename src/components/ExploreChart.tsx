@@ -37,13 +37,15 @@ import type { HistoryPoint } from '@/types';
  */
 
 type ChartKind = 'price' | 'compare' | 'change' | 'ratio';
-type TimeRange = '1W' | '1M' | '6M' | '1Y' | 'MAX';
+type TimeRange = '1W' | '1M' | '6M' | '1Y' | '5Y' | '10Y' | 'MAX';
 
 const RANGE_DAYS: Record<TimeRange, number | null> = {
     '1W': 7,
     '1M': 30,
     '6M': 180,
     '1Y': 365,
+    '5Y': 365 * 5,
+    '10Y': 365 * 10,
     MAX: null,
 };
 const RANGES = Object.keys(RANGE_DAYS) as TimeRange[];
@@ -117,7 +119,8 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
 
     const activeSeries = activeMetal === 'gold' ? gold : silver;
     const activeColor = activeMetal === 'gold' ? GOLD_COLOR : SILVER_COLOR;
-    const longRange = timeRange === 'MAX' || timeRange === '1Y' || timeRange === '6M';
+    const rangeDays = RANGE_DAYS[timeRange];
+    const longRange = rangeDays === null || rangeDays >= 180;
 
     const priceData = useMemo(() => {
         const sliced = downsample(sliceRange(activeSeries, timeRange), MAX_PLOTTED_POINTS);
