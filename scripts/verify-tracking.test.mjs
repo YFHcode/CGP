@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { extractGtmId, extractMeasurementIds, extractInlineMeasurementIds } from './verify-tracking.mjs';
+import {
+    extractGtmId,
+    extractMeasurementIds,
+    extractInlineMeasurementIds,
+    describeError,
+} from './verify-tracking.mjs';
 
 test('extractGtmId finds the container ID when the loader builds the URL by concatenation', () => {
     // This is the actual shape Google's standard snippet produces: the ID is
@@ -36,4 +41,26 @@ test('extractMeasurementIds returns an empty array when no GA4 tag is compiled i
 test('extractInlineMeasurementIds finds a direct gtag.js reference in page HTML', () => {
     const html = `<script src="https://www.googletagmanager.com/gtag/js?id=G-630K6DQSNK"></script>`;
     assert.deepEqual(extractInlineMeasurementIds(html), ['G-630K6DQSNK']);
+});
+
+test('describeError surfaces the nested cause behind a generic "fetch failed"', () => {
+    // This is the actual shape Node's fetch throws: a TypeError whose message
+    // is just "fetch failed", with the real reason in .cause. This is the bug
+    // that made the first live run unreadable — "Site unreachable — fetch
+    // failed" with no way to tell DNS failure from a WAF block.
+    const dnsError = Object.assign(new Error('getaddrinfo ENOTFOUND www.chartgoldprice.com'), {
+        code: 'ENOTFOUND',
+    });
+    const fetchError = Object.assign(new TypeError('fetch failed'), { cause: dnsError });
+
+    const described = describeError(fetchError);
+    assert.match(described, /fetch failed/);
+    assert.match(described, /ENOTFOUND/);
+    assert.match(described, /getaddrinfo/);
+});
+
+test('describeError reports a clear timeout message for an AbortError', () => {
+    const error = new Error('This operation was aborted');
+    error.name = 'AbortError';
+    assert.match(describeError(error), /timeout after \d+ms/);
 });
