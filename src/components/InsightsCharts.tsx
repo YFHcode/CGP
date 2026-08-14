@@ -40,10 +40,14 @@ function downsample<T>(points: T[], limit = MAX_PLOTTED_POINTS): T[] {
 }
 
 function dateLabel(iso: string, longRange: boolean): string {
+    // timeZone: 'UTC' — these are calendar dates, not instants. Without it a
+    // viewer west of UTC sees every label shifted back a day.
     const date = new Date(iso);
     return date.toLocaleDateString(
         'en-US',
-        longRange ? { month: 'short', year: 'numeric' } : { month: 'short', day: 'numeric' }
+        longRange
+            ? { month: 'short', year: 'numeric', timeZone: 'UTC' }
+            : { month: 'short', day: 'numeric', timeZone: 'UTC' }
     );
 }
 
