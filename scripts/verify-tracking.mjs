@@ -55,20 +55,58 @@ export function extractInlineMeasurementIds(html) {
 // Probe
 // ---------------------------------------------------------------------------
 
-async function timedFetch(url) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    const started = Date.now();
-    try {
-        const res = await fetch(url, {
-            signal: controller.signal,
-            headers: { 'User-Agent': 'ChartGoldPrice-TrackingProbe/1.0' },
-        });
-        const text = await res.text();
-        return { res, text, ms: Date.now() - started };
-    } finally {
-        clearTimeout(timer);
+/**
+ * Node's fetch wraps the real network failure (DNS lookup, connection reset,
+ * TLS handshake, etc.) behind a generic `TypeError: fetch failed`, with the
+ * actual cause nested in `error.cause`. Printing only `error.message` — as
+ * the first version of this script did — hides exactly the information
+ * needed to tell a transient blip apart from something systematic.
+ */
+export function describeError(error) {
+    if (error?.name === 'AbortError') return `timeout after ${TIMEOUT_MS}ms`;
+
+    const parts = [error?.message ?? String(error)];
+    let cause = error?.cause;
+    let depth = 0;
+    while (cause && depth < 4) {
+        const code = cause.code ? ` [${cause.code}]` : '';
+        parts.push(`${cause.message ?? String(cause)}${code}`);
+        cause = cause.cause;
+        depth += 1;
     }
+    return parts.join(' — caused by: ');
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Retries once on a network-level failure (DNS, connection reset, TLS,
+ * timeout) but never on an HTTP error response — a 403 or 500 is a real
+ * diagnostic signal, not flakiness, and retrying would just hide it behind
+ * a delay. One retry is enough to tell a genuine outage apart from the kind
+ * of one-off blip a runner or a WAF occasionally produces.
+ */
+async function timedFetch(url, retries = 1) {
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const started = Date.now();
+        try {
+            const res = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'User-Agent': 'ChartGoldPrice-TrackingProbe/1.0' },
+            });
+            const text = await res.text();
+            return { res, text, ms: Date.now() - started };
+        } catch (error) {
+            lastError = error;
+            if (attempt < retries) await sleep(2000 * (attempt + 1));
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    throw lastError;
 }
 
 async function main() {
@@ -90,7 +128,7 @@ async function main() {
         html = text;
         lines.push(`✅ Site responded (HTTP ${res.status}, ${ms}ms).`, '');
     } catch (error) {
-        lines.push(`❌ **Site unreachable** — ${error.message ?? error}.`, '');
+        lines.push(`❌ **Site unreachable** — ${describeError(error)}.`, '');
         await report(lines);
         process.exitCode = 1;
         return;
@@ -132,7 +170,7 @@ async function main() {
         gtmJs = text;
         lines.push(`✅ GTM container is publicly reachable (HTTP ${res.status}, ${ms}ms).`, '');
     } catch (error) {
-        lines.push(`❌ **Could not fetch the GTM container** — ${error.message ?? error}.`, '');
+        lines.push(`❌ **Could not fetch the GTM container** — ${describeError(error)}.`, '');
         await report(lines);
         process.exitCode = 1;
         return;
