@@ -61,19 +61,27 @@ const cachedNews = unstable_cache(fetchNews, ['news-gold-us'], {
  */
 const MIN_LIVE_ITEMS = 4;
 
-/** The archive stores link metadata only, so there is no snippet to carry over. */
+/**
+ * The archive stores link metadata only, so there is no snippet to carry over.
+ *
+ * `reportedDate` is deliberately ignored: the provider reports relative
+ * strings ("3 hours ago"), and every one of the archived entries has one.
+ * Replaying that later would date a story archived four days ago as "3 hours
+ * ago", and it is unparseable, so it would also sort to the bottom. `seenAt`
+ * is a real ISO timestamp, so it is used for both display and ordering.
+ */
 function archiveToNewsItems(entries: NewsArchiveEntry[]): NewsItem[] {
     return entries.map((entry) => ({
         link: entry.link,
         title: entry.title,
         source: entry.source,
-        date: entry.reportedDate ?? new Date(entry.seenAt).toLocaleDateString('en-US', {
+        date: new Date(entry.seenAt).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
             timeZone: 'UTC',
         }),
-        published_at: entry.reportedDate ?? entry.seenAt,
+        published_at: entry.seenAt,
         snippet: '',
     }));
 }
@@ -111,7 +119,11 @@ export async function getNews(): Promise<NewsItem[]> {
                 `[NewsAPI] only ${live.length} live item(s); backfilling ${backfill.length} from the archive`
             );
         }
-        return [...live, ...backfill];
+
+        // Sort the merged list newest-first. Live items carry absolute
+        // timestamps and archived ones carry seenAt, so both are comparable;
+        // anything unparseable sorts last rather than scrambling the order.
+        return [...live, ...backfill].sort((a, b) => toSortableTime(b) - toSortableTime(a));
     } catch (error) {
         console.error('[NewsAPI] archive fallback failed:', error instanceof Error ? error.message : error);
         return live;

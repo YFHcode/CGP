@@ -16,8 +16,14 @@ export function NewsCard({ item, imageHeight = 176, priority = false }: NewsCard
             rel="noopener noreferrer"
             className="group block overflow-hidden rounded-xl border border-white/10 bg-zinc-900/50 transition-all hover:border-gold-500/30 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
         >
-            {item.thumbnail && (
-                <div className="relative w-full overflow-hidden" style={{ height: imageHeight }}>
+            {/* Every card gets a header block of the same height, so a mixed
+                row of items with and without a publisher thumbnail still lines
+                up. Archive-backed items never have one, and the live provider
+                omits them often enough that the ragged version was the norm.
+                The fallback is drawn in CSS from the publisher's own name — no
+                extra request, and no invented imagery attributed to them. */}
+            <div className="relative w-full overflow-hidden" style={{ height: imageHeight }}>
+                {item.thumbnail ? (
                     <Image
                         src={item.thumbnail}
                         alt=""
@@ -29,8 +35,17 @@ export function NewsCard({ item, imageHeight = 176, priority = false }: NewsCard
                         // beats a broken-image icon inside the card.
                         unoptimized
                     />
-                </div>
-            )}
+                ) : (
+                    <div
+                        aria-hidden="true"
+                        className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"
+                    >
+                        <span className="px-6 text-center text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                            {item.source}
+                        </span>
+                    </div>
+                )}
+            </div>
             <div className="p-6">
                 <div className="mb-3 flex items-center justify-between gap-2">
                     <span className="truncate text-xs font-medium text-gold-400">{item.source}</span>

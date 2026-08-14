@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Calendar } from 'lucide-react';
 
@@ -8,6 +9,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata, SITE_URL } from '@/lib/seo';
+import { LOCALE_PAGES } from '@/lib/locale-pages';
 import { annualReturns, computeDrawdowns } from '@/lib/insights-metrics';
 import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
 
@@ -22,7 +24,7 @@ import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
 
 export const revalidate = 86400;
 
-export const metadata = pageMetadata({
+const baseMetadata = pageMetadata({
     title: 'Silver Price History — Charts and Annual Returns',
     description:
         'Historical silver prices with interactive charts from one week to the full record, ' +
@@ -37,6 +39,24 @@ export const metadata = pageMetadata({
         'silver price 10 years',
     ],
 });
+
+// Reciprocal hreflang back to /nl, the localized counterpart of this page —
+// without this, /nl pointed at the English original but not vice versa.
+export const metadata: Metadata = {
+    ...baseMetadata,
+    alternates: {
+        ...baseMetadata.alternates,
+        languages: {
+            'x-default': `${SITE_URL}/silver-price-history`,
+            en: `${SITE_URL}/silver-price-history`,
+            ...Object.fromEntries(
+                LOCALE_PAGES.filter((page) => page.canonicalEnglishPath === '/silver-price-history').map(
+                    (page) => [page.lang, `${SITE_URL}/${page.locale}`]
+                )
+            ),
+        },
+    },
+};
 
 export default async function SilverPriceHistoryPage() {
     const history = await getHistory();
@@ -98,7 +118,7 @@ export default async function SilverPriceHistoryPage() {
             </section>
 
             <LazyPriceChart
-                gold={history.gold}
+                gold={[]}
                 silver={series}
                 source={history.source}
                 defaultMetal="silver"

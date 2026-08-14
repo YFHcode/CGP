@@ -166,7 +166,9 @@ export interface RatesSnapshot {
  *
  * The fallback matters because those pages 404 without a rate — on a fresh
  * clone, or before the first scheduled refresh, the sitemap would otherwise
- * advertise a dozen dead URLs.
+ * advertise a dozen dead URLs. The same staleness guard as getPrices() also
+ * applies: a stalled refresh workflow must not freeze rates indefinitely
+ * with nothing to trigger a live call.
  */
 export const getRates = cache(async (): Promise<RatesSnapshot> => {
     const snapshot = await readSnapshot<RatesSnapshot>('rates.json', {
@@ -176,7 +178,7 @@ export const getRates = cache(async (): Promise<RatesSnapshot> => {
     });
 
     const stored = snapshot.rates ?? {};
-    if (Object.keys(stored).length > 0) {
+    if (Object.keys(stored).length > 0 && isFresh(snapshot.updatedAt)) {
         return {
             updatedAt: snapshot.updatedAt ?? null,
             base: snapshot.base ?? 'USD',
@@ -185,6 +187,16 @@ export const getRates = cache(async (): Promise<RatesSnapshot> => {
     }
 
     const live = await getExchangeRates();
+
+    // Prefer live, but never discard a stale snapshot in favour of nothing.
+    if (!live && Object.keys(stored).length > 0) {
+        return {
+            updatedAt: snapshot.updatedAt ?? null,
+            base: snapshot.base ?? 'USD',
+            rates: { USD: 1, ...stored },
+        };
+    }
+
     return {
         updatedAt: live ? new Date().toISOString() : null,
         base: 'USD',
