@@ -106,12 +106,14 @@ export function PriceChart({
 
     const data = useMemo(() => {
         const sliced = downsample(sliceRange(series, timeRange));
-        // Day-level labels are unreadable across years, so long ranges switch to
-        // month + year.
-        // Derived from the window rather than an explicit list, so adding a
-        // range can't silently leave day-level labels on a multi-year axis.
+        // Day-level labels are unreadable across years, so ranges of a year
+        // or more switch to month + year. Derived from the window rather than
+        // an explicit list, so adding a range can't silently leave day-level
+        // labels on a multi-year axis. The threshold is a year, not six
+        // months: at 6M, month+year repeats each month across several ticks
+        // ("Mar 2026, Mar 2026, Apr 2026...").
         const days = RANGE_DAYS[timeRange];
-        const isLongRange = days === null || days >= 180;
+        const isLongRange = days === null || days >= 365;
 
         return sliced.map((point) => ({
             date: point.date,
