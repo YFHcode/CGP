@@ -99,8 +99,8 @@ export default async function LocalePage({ params }: { params: Promise<{ locale:
             </section>
 
             <LazyPriceChart
-                gold={history.gold}
-                silver={history.silver}
+                gold={isGold ? history.gold : []}
+                silver={isGold ? [] : history.silver}
                 source={history.source}
                 defaultMetal={isGold ? 'gold' : 'silver'}
                 lockMetal

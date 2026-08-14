@@ -98,7 +98,7 @@ export default async function SilverPriceHistoryPage() {
             </section>
 
             <LazyPriceChart
-                gold={history.gold}
+                gold={[]}
                 silver={series}
                 source={history.source}
                 defaultMetal="silver"

@@ -405,8 +405,11 @@ export function PeriodPage({
             {/* Only chart multi-point periods; a single day is one dot. */}
             {stats.points.length > 1 && (
                 <LazyPriceChart
-                    gold={metal === 'XAU' ? stats.points : otherSeries}
-                    silver={metal === 'XAG' ? stats.points : otherSeries}
+                    // lockMetal is set, so only this metal's series is ever
+                    // plotted. Passing the other one ships an unused copy of the
+                    // full history in every prerendered archive page.
+                    gold={metal === 'XAU' ? stats.points : []}
+                    silver={metal === 'XAG' ? stats.points : []}
                     source={source}
                     defaultMetal={metal === 'XAU' ? 'gold' : 'silver'}
                     lockMetal
