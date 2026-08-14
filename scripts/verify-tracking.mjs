@@ -22,10 +22,21 @@ const TIMEOUT_MS = 20000;
 // Pure helpers (unit-tested in verify-tracking.test.mjs)
 // ---------------------------------------------------------------------------
 
-/** Pulls the GTM container ID out of the inline bootstrap snippet in the page HTML. */
+/**
+ * Pulls the GTM container ID out of the page HTML.
+ *
+ * Google's standard async loader builds the gtm.js URL by string
+ * concatenation (`'…gtm.js?id='+i+dl`), so `gtm.js?id=GTM-XXXX` never
+ * appears as a literal substring in the response — matching on that URL
+ * shape produces a false "no snippet found" on a page that has the tag.
+ * The ID itself does appear literally, though: as the bootstrap IIFE's
+ * last argument and in the `<noscript>` iframe's `src`. Matching the ID
+ * pattern directly works regardless of how the surrounding script builds
+ * the URL around it.
+ */
 export function extractGtmId(html) {
-    const match = html.match(/googletagmanager\.com\/gtm\.js\?id=([A-Z0-9-]+)/i);
-    return match ? match[1] : null;
+    const match = html.match(/GTM-[A-Z0-9]+/);
+    return match ? match[0] : null;
 }
 
 /** Finds every GA4 measurement ID (G-XXXXXXXXXX) compiled into a published GTM container. */
