@@ -3,8 +3,20 @@ import assert from 'node:assert/strict';
 
 import { extractGtmId, extractMeasurementIds, extractInlineMeasurementIds } from './verify-tracking.mjs';
 
-test('extractGtmId finds the container ID in the bootstrap snippet', () => {
-    const html = `<script>...j.src='https://www.googletagmanager.com/gtm.js?id=GTM-5HH5Z24L'+dl;...</script>`;
+test('extractGtmId finds the container ID when the loader builds the URL by concatenation', () => {
+    // This is the actual shape Google's standard snippet produces: the ID is
+    // a literal string argument, but the gtm.js URL itself is assembled at
+    // runtime ('...gtm.js?id='+i+dl) and never appears whole in the HTML.
+    const html = [
+        '<script>(function(w,d,s,l,i){',
+        "j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;",
+        "})(window,document,'script','dataLayer','GTM-5HH5Z24L');</script>",
+    ].join('\n');
+    assert.equal(extractGtmId(html), 'GTM-5HH5Z24L');
+});
+
+test('extractGtmId finds the container ID in the noscript iframe fallback', () => {
+    const html = `<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5HH5Z24L"></iframe></noscript>`;
     assert.equal(extractGtmId(html), 'GTM-5HH5Z24L');
 });
 
