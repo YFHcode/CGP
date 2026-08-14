@@ -120,10 +120,16 @@ export async function getNews(): Promise<NewsItem[]> {
             );
         }
 
-        // Sort the merged list newest-first. Live items carry absolute
-        // timestamps and archived ones carry seenAt, so both are comparable;
-        // anything unparseable sorts last rather than scrambling the order.
-        return [...live, ...backfill].sort((a, b) => toSortableTime(b) - toSortableTime(a));
+        // Live items lead and the archive only fills the tail — not a
+        // merged sort. The provider's own `date` field is a relative string
+        // ("3 hours ago", confirmed by every entry in the archive), so live
+        // items have no parseable timestamp and score 0 in toSortableTime;
+        // sorting the merge by that score would rank every backfilled story
+        // (which does carry a real seenAt) above the fresh ones it's meant
+        // to supplement. Both groups are already reasonably ordered on
+        // their own — live by the provider's relevance order, archive
+        // newest-first — so concatenation preserves that correctly.
+        return [...live, ...backfill];
     } catch (error) {
         console.error('[NewsAPI] archive fallback failed:', error instanceof Error ? error.message : error);
         return live;

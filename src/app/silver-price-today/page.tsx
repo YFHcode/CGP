@@ -36,11 +36,10 @@ export default async function SilverPriceTodayPage() {
 
       {/* Silver-first, and locked, so this page leads with its own metal. */}
       <LazyPriceChart
-        gold={history.gold}
-        silver={history.silver}
-        source={history.source}
-        defaultMetal="silver"
         lockMetal
+        metal="silver"
+        series={history.silver}
+        source={history.source}
         title="Silver price history"
       />
 

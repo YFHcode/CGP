@@ -6,7 +6,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { LastUpdated } from '@/components/LastUpdated';
 import { CurrencyValue } from '@/components/CurrencyValue';
 import { getPrices, getHistory } from '@/lib/prices';
-import { LOCALE_PAGES, findLocalePage } from '@/lib/locale-pages';
+import { LOCALE_PAGES, findLocalePage, localeAlternates } from '@/lib/locale-pages';
 import { pageMetadata, SITE_URL } from '@/lib/seo';
 import { periodFaqSchema } from '@/lib/period-faq';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
@@ -53,21 +53,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     // /uk and /de cover gold, so the cluster is grouped by canonical English
     // path rather than lumping all three locales together as if they were
     // translations of one page.
-    const cluster = LOCALE_PAGES.filter(
-        (page) => page.canonicalEnglishPath === config.canonicalEnglishPath
-    );
-
     return {
         ...base,
         alternates: {
             canonical: `${SITE_URL}/${config.locale}`,
-            languages: {
-                'x-default': `${SITE_URL}${config.canonicalEnglishPath}`,
-                en: `${SITE_URL}${config.canonicalEnglishPath}`,
-                ...Object.fromEntries(
-                    cluster.map((page) => [page.lang, `${SITE_URL}/${page.locale}`])
-                ),
-            },
+            languages: localeAlternates(config.canonicalEnglishPath),
         },
     };
 }
@@ -110,11 +100,10 @@ export default async function LocalePage({ params }: { params: Promise<{ locale:
             </section>
 
             <LazyPriceChart
-                gold={isGold ? history.gold : []}
-                silver={isGold ? [] : history.silver}
-                source={history.source}
-                defaultMetal={isGold ? 'gold' : 'silver'}
                 lockMetal
+                metal={isGold ? 'gold' : 'silver'}
+                series={isGold ? history.gold : history.silver}
+                source={history.source}
                 title={config.chartTitle}
             />
 

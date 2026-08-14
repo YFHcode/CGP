@@ -38,17 +38,34 @@ const RANGE_DAYS: Record<TimeRange, number | null> = {
 
 const RANGES = Object.keys(RANGE_DAYS) as TimeRange[];
 
-interface PriceChartProps {
-    gold: HistoryPoint[];
-    silver: HistoryPoint[];
+interface PriceChartCommonProps {
     /** Attribution for the series, shown under the chart. */
     source?: string | null;
-    /** Which metal to show first. */
-    defaultMetal?: 'gold' | 'silver';
-    /** Hide the metal switcher on pages that are about a single metal. */
-    lockMetal?: boolean;
     title?: string;
 }
+
+type PriceChartProps = PriceChartCommonProps &
+    (
+        | {
+              /** Both metals available; the switcher lets visitors flip between them. */
+              lockMetal?: false;
+              gold: HistoryPoint[];
+              silver: HistoryPoint[];
+              /** Which metal to show first. */
+              defaultMetal?: 'gold' | 'silver';
+          }
+        | {
+              /**
+               * Single-metal pages. Only `series` is ever plotted, so this is
+               * also what keeps the other metal's history out of the page's
+               * serialized payload — there is no `gold`/`silver` pair to
+               * accidentally pass both halves of.
+               */
+              lockMetal: true;
+              metal: 'gold' | 'silver';
+              series: HistoryPoint[];
+          }
+    );
 
 /**
  * Caps how many points reach the SVG. Stored history is append-only and grows
@@ -90,19 +107,17 @@ function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
     return windowed.length >= 2 ? windowed : points.slice(-days);
 }
 
-export function PriceChart({
-    gold,
-    silver,
-    source,
-    defaultMetal = 'gold',
-    lockMetal = false,
-    title = 'Price history',
-}: PriceChartProps) {
-    const [activeMetal, setActiveMetal] = useState<'gold' | 'silver'>(defaultMetal);
+export function PriceChart(props: PriceChartProps) {
+    const { source, title = 'Price history' } = props;
+    const lockMetal = props.lockMetal ?? false;
+
+    const [activeMetal, setActiveMetal] = useState<'gold' | 'silver'>(
+        props.lockMetal ? props.metal : props.defaultMetal ?? 'gold'
+    );
     const [timeRange, setTimeRange] = useState<TimeRange>('1M');
     const { convertPrice, currency, activeCurrency } = useCurrency();
 
-    const series = activeMetal === 'gold' ? gold : silver;
+    const series = props.lockMetal ? props.series : activeMetal === 'gold' ? props.gold : props.silver;
 
     const data = useMemo(() => {
         const sliced = downsample(sliceRange(series, timeRange));
