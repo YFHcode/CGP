@@ -7,8 +7,8 @@ import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getHistory } from '@/lib/prices';
-import { breadcrumbSchema, pageMetadata, SITE_URL } from '@/lib/seo';
-import { LOCALE_PAGES } from '@/lib/locale-pages';
+import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
+import { localeAlternates } from '@/lib/locale-pages';
 
 const baseMetadata = pageMetadata({
   title: 'Gold Price History',
@@ -25,15 +25,7 @@ export const metadata: Metadata = {
   ...baseMetadata,
   alternates: {
     ...baseMetadata.alternates,
-    languages: {
-      'x-default': `${SITE_URL}/gold-price-history`,
-      en: `${SITE_URL}/gold-price-history`,
-      ...Object.fromEntries(
-        LOCALE_PAGES.filter((page) => page.canonicalEnglishPath === '/gold-price-history').map(
-          (page) => [page.lang, `${SITE_URL}/${page.locale}`]
-        )
-      ),
-    },
+    languages: localeAlternates('/gold-price-history'),
   },
 };
 

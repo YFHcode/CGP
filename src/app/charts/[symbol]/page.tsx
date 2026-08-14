@@ -114,12 +114,10 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
             </section>
 
             <LazyPriceChart
-                // lockMetal: the opposite metal's series would never render.
-                gold={slug === 'gold' ? series : []}
-                silver={slug === 'silver' ? series : []}
-                source={history.source}
-                defaultMetal={slug}
                 lockMetal
+                metal={slug}
+                series={series}
+                source={history.source}
                 title={`${chart.name} price history`}
             />
 

@@ -1,4 +1,5 @@
 import type { MetalSymbol } from '@/types';
+import { SITE_URL } from './navigation';
 
 /**
  * Localized landing pages for locales with demonstrated, unserved demand.
@@ -152,4 +153,27 @@ export const LOCALE_PAGES: LocalePageConfig[] = [
 
 export function findLocalePage(locale: string): LocalePageConfig | undefined {
     return LOCALE_PAGES.find((page) => page.locale === locale.toLowerCase());
+}
+
+/**
+ * Builds the `alternates.languages` map for one page in a locale cluster —
+ * either an English canonical page or one of its localized counterparts.
+ *
+ * The cluster is every LOCALE_PAGES entry that shares the same English
+ * canonical path, not all of LOCALE_PAGES: /nl covers silver while /uk and
+ * /de cover gold, so lumping all three together would cross-declare pages
+ * about different metals as translations of each other. Centralized here
+ * rather than re-filtered at each call site so a new locale only has to be
+ * added to LOCALE_PAGES once — every page in its cluster picks it up
+ * automatically instead of needing the same filter copied into a fourth or
+ * fifth place.
+ */
+export function localeAlternates(canonicalEnglishPath: string): Record<string, string> {
+    const cluster = LOCALE_PAGES.filter((page) => page.canonicalEnglishPath === canonicalEnglishPath);
+
+    return {
+        'x-default': `${SITE_URL}${canonicalEnglishPath}`,
+        en: `${SITE_URL}${canonicalEnglishPath}`,
+        ...Object.fromEntries(cluster.map((page) => [page.lang, `${SITE_URL}/${page.locale}`])),
+    };
 }

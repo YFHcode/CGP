@@ -9,7 +9,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata, SITE_URL } from '@/lib/seo';
-import { LOCALE_PAGES } from '@/lib/locale-pages';
+import { localeAlternates } from '@/lib/locale-pages';
 import { annualReturns, computeDrawdowns } from '@/lib/insights-metrics';
 import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
 
@@ -46,15 +46,7 @@ export const metadata: Metadata = {
     ...baseMetadata,
     alternates: {
         ...baseMetadata.alternates,
-        languages: {
-            'x-default': `${SITE_URL}/silver-price-history`,
-            en: `${SITE_URL}/silver-price-history`,
-            ...Object.fromEntries(
-                LOCALE_PAGES.filter((page) => page.canonicalEnglishPath === '/silver-price-history').map(
-                    (page) => [page.lang, `${SITE_URL}/${page.locale}`]
-                )
-            ),
-        },
+        languages: localeAlternates('/silver-price-history'),
     },
 };
 
@@ -118,11 +110,10 @@ export default async function SilverPriceHistoryPage() {
             </section>
 
             <LazyPriceChart
-                gold={[]}
-                silver={series}
-                source={history.source}
-                defaultMetal="silver"
                 lockMetal
+                metal="silver"
+                series={series}
+                source={history.source}
                 title="Historical silver closing prices"
             />
 

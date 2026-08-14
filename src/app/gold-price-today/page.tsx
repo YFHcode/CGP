@@ -37,11 +37,10 @@ export default async function GoldPriceTodayPage() {
 
       {/* Gold-first history so this page isn't a duplicate of the silver one. */}
       <LazyPriceChart
-        gold={history.gold}
-        silver={history.silver}
-        source={history.source}
-        defaultMetal="gold"
         lockMetal
+        metal="gold"
+        series={history.gold}
+        source={history.source}
         title="Gold price history"
       />
 
