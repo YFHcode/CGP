@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "node --test scripts/*.test.mjs",
     "refresh-data": "node scripts/refresh-data.mjs",
-    "probe-sources": "node scripts/probe-sources.mjs"
+    "probe-sources": "node scripts/probe-sources.mjs",
+    "verify-tracking": "node scripts/verify-tracking.mjs"
   },
   "dependencies": {
     "@sanity/image-url": "^2.0.1",

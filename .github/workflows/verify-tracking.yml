@@ -1,0 +1,32 @@
+name: Verify analytics tracking
+
+# Diagnostic workflow. Fetches the live site and the published GTM container
+# to confirm a GA4 tag is actually compiled into what's live — the same check
+# a sandboxed dev environment can't do, for the same reason
+# verify-data-sources.yml exists (GitHub runners have unrestricted outbound
+# internet).
+#
+# It never writes to data/ or anything else. Run it from the Actions tab
+# whenever GA4 reports no data, to rule the tag config in or out before
+# digging through the Tag Manager UI by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Unit tests for the parsing logic
+        run: node --test scripts/verify-tracking.test.mjs
+
+      - name: Verify tracking
+        run: node scripts/verify-tracking.mjs
