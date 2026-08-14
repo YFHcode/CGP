@@ -14,6 +14,7 @@ import {
     CartesianGrid,
     Tooltip,
     Legend,
+    ReferenceLine,
     ResponsiveContainer,
 } from 'recharts';
 
@@ -126,7 +127,9 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
     const activeSeries = activeMetal === 'gold' ? gold : silver;
     const activeColor = activeMetal === 'gold' ? GOLD_COLOR : SILVER_COLOR;
     const rangeDays = RANGE_DAYS[timeRange];
-    const longRange = rangeDays === null || rangeDays >= 180;
+    // Month+year only past a year; at 6M it repeats each month across
+    // several ticks ("Mar 2026, Mar 2026, Apr 2026...").
+    const longRange = rangeDays === null || rangeDays >= 365;
 
     const priceData = useMemo(() => {
         const sliced = downsample(sliceRange(activeSeries, timeRange), MAX_PLOTTED_POINTS);
@@ -141,11 +144,16 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
         const joined = joinByDate(sliceRange(gold, timeRange), sliceRange(silver, timeRange));
         if (joined.length === 0) return [];
         const base = joined[0];
+        // Percentage change from the start of the range, not an index-to-100.
+        // Indexing to 100 is the finance convention, but it reads as a price
+        // to everyone else — a silver line above a gold line looks like silver
+        // costs more, when it only means silver gained more. A zero baseline
+        // with signed percentages cannot be misread that way.
         return downsample(joined, MAX_PLOTTED_POINTS).map((p) => ({
             date: p.date,
             label: dateLabel(p.date, longRange),
-            gold: (p.a / base.a) * 100,
-            silver: (p.b / base.b) * 100,
+            gold: (p.a / base.a - 1) * 100,
+            silver: (p.b / base.b - 1) * 100,
         }));
     }, [gold, silver, timeRange, longRange]);
 
@@ -198,8 +206,8 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
     const subtitle = {
         price: `Daily closing prices, ${activeMetal === 'gold' ? 'XAU' : 'XAG'}/${activeCurrency}`,
         compare:
-            'Percentage growth, not price — both metals start at 100, so the higher line is the ' +
-            'one that has gained more (gold still costs far more per ounce)',
+            'How much each metal has gained or lost since the start of the range. This is ' +
+            'performance, not price — gold still costs far more per ounce than silver.',
         change: `Day-over-day % change, ${activeMetal === 'gold' ? 'gold' : 'silver'}`,
         ratio: 'Ounces of silver one ounce of gold buys, over time',
     }[kind];
@@ -346,18 +354,15 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
                                     <XAxis dataKey="label" {...axisProps} minTickGap={30} />
                                     <YAxis
                                         {...axisProps}
-                                        tickFormatter={(v: number) => v.toFixed(0)}
+                                        tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
                                         domain={['auto', 'auto']}
                                         width={60}
                                     />
+                                    <ReferenceLine y={0} stroke="#71717a" strokeWidth={1} />
                                     <Tooltip
                                         {...tooltipStyle}
-                                        // Spell out the percentage rather than leaving a bare
-                                        // index number. "Silver: 117.3" next to "Gold: 110.6"
-                                        // reads as silver being worth more, which is the
-                                        // opposite of what an indexed chart says.
                                         formatter={(value: number, name: string) => [
-                                            `${formatNumber(value, 1)} (${value >= 100 ? '+' : ''}${(value - 100).toFixed(1)}% since ${compareData[0]?.label ?? 'start'})`,
+                                            `${value >= 0 ? '+' : ''}${value.toFixed(1)}% since ${compareData[0]?.label ?? 'start'}`,
                                             name,
                                         ]}
                                     />
