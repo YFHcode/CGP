@@ -115,11 +115,14 @@ export function PriceChart({
 
         return sliced.map((point) => ({
             date: point.date,
+            // timeZone: 'UTC' — a stored date is a calendar date, not an
+            // instant. Formatting it in the viewer's zone renders the day
+            // before for anyone west of UTC, mislabelling every close.
             label: new Date(point.date).toLocaleDateString(
                 'en-US',
                 isLongRange
-                    ? { month: 'short', year: 'numeric' }
-                    : { month: 'short', day: 'numeric' }
+                    ? { month: 'short', year: 'numeric', timeZone: 'UTC' }
+                    : { month: 'short', day: 'numeric', timeZone: 'UTC' }
             ),
             // Fall back to the USD close when no rate is available, matching the
             // currency label rendered below.

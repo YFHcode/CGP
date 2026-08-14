@@ -84,9 +84,15 @@ function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
 }
 
 function dateLabel(iso: string, longRange: boolean): string {
+    // timeZone: 'UTC' is required, not cosmetic. "2026-08-02" parses as UTC
+    // midnight, so formatting it in a timezone behind UTC renders the
+    // previous day — labelling a Monday close as Sunday, or as a Saturday
+    // the market was closed on. These are calendar dates, not instants.
     return new Date(iso).toLocaleDateString(
         'en-US',
-        longRange ? { month: 'short', year: 'numeric' } : { month: 'short', day: 'numeric' }
+        longRange
+            ? { month: 'short', year: 'numeric', timeZone: 'UTC' }
+            : { month: 'short', day: 'numeric', timeZone: 'UTC' }
     );
 }
 
@@ -191,7 +197,9 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
     const activeKind = CHART_KINDS.find((c) => c.key === kind)!;
     const subtitle = {
         price: `Daily closing prices, ${activeMetal === 'gold' ? 'XAU' : 'XAG'}/${activeCurrency}`,
-        compare: 'Both metals indexed to 100 at the start of the range, so relative performance is directly comparable',
+        compare:
+            'Percentage growth, not price — both metals start at 100, so the higher line is the ' +
+            'one that has gained more (gold still costs far more per ounce)',
         change: `Day-over-day % change, ${activeMetal === 'gold' ? 'gold' : 'silver'}`,
         ratio: 'Ounces of silver one ounce of gold buys, over time',
     }[kind];
@@ -344,7 +352,14 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
                                     />
                                     <Tooltip
                                         {...tooltipStyle}
-                                        formatter={(value: number, name: string) => [formatNumber(value, 1), name]}
+                                        // Spell out the percentage rather than leaving a bare
+                                        // index number. "Silver: 117.3" next to "Gold: 110.6"
+                                        // reads as silver being worth more, which is the
+                                        // opposite of what an indexed chart says.
+                                        formatter={(value: number, name: string) => [
+                                            `${formatNumber(value, 1)} (${value >= 100 ? '+' : ''}${(value - 100).toFixed(1)}% since ${compareData[0]?.label ?? 'start'})`,
+                                            name,
+                                        ]}
                                     />
                                     <Legend
                                         wrapperStyle={{ fontSize: 12 }}
