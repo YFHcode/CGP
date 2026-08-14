@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { JsonLd } from '@/components/JsonLd';
 import { LastUpdated } from '@/components/LastUpdated';
+import { CurrencyValue } from '@/components/CurrencyValue';
 import { getPrices, getHistory } from '@/lib/prices';
 import { LOCALE_PAGES, findLocalePage } from '@/lib/locale-pages';
 import { pageMetadata, SITE_URL } from '@/lib/seo';
 import { periodFaqSchema } from '@/lib/period-faq';
-import { formatCurrency } from '@/lib/currencies';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 
 /**
@@ -20,6 +20,11 @@ import { GRAMS_PER_OZ } from '@/lib/conversions';
  */
 
 export const revalidate = 10800;
+
+// Only the configured locales are real pages; every other segment (bot
+// probes like /wp-admin) should 404 at the routing layer instead of paying
+// for a full dynamic render.
+export const dynamicParams = false;
 
 export function generateStaticParams() {
     return LOCALE_PAGES.map((page) => ({ locale: page.locale }));
@@ -43,9 +48,15 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         path: `/${config.locale}`,
     });
 
-    // hreflang: every localized page points at all the others and at the
-    // English original, which is what tells Google these are alternates
-    // rather than competing duplicates.
+    // hreflang: every localized page points at the others covering the same
+    // underlying topic, and at the English original. /nl covers silver while
+    // /uk and /de cover gold, so the cluster is grouped by canonical English
+    // path rather than lumping all three locales together as if they were
+    // translations of one page.
+    const cluster = LOCALE_PAGES.filter(
+        (page) => page.canonicalEnglishPath === config.canonicalEnglishPath
+    );
+
     return {
         ...base,
         alternates: {
@@ -54,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
                 'x-default': `${SITE_URL}${config.canonicalEnglishPath}`,
                 en: `${SITE_URL}${config.canonicalEnglishPath}`,
                 ...Object.fromEntries(
-                    LOCALE_PAGES.map((page) => [page.lang, `${SITE_URL}/${page.locale}`])
+                    cluster.map((page) => [page.lang, `${SITE_URL}/${page.locale}`])
                 ),
             },
         },
@@ -71,8 +82,6 @@ export default async function LocalePage({ params }: { params: Promise<{ locale:
     const quote = isGold ? gold : silver;
     if (!quote) notFound();
 
-    const money = (v: number) => formatCurrency(v, 'USD');
-
     return (
         <div lang={config.lang}>
             <JsonLd schema={periodFaqSchema(config.faq)} />
@@ -83,9 +92,11 @@ export default async function LocalePage({ params }: { params: Promise<{ locale:
                         {config.heading}
                     </h1>
                     <p className="mb-4 text-2xl font-medium text-gold-300">
-                        {money(quote.price)}
+                        <CurrencyValue usd={quote.price} />
                         <span className="ml-2 text-sm text-zinc-400">/ oz</span>
-                        <span className="ml-4">{money(quote.price / GRAMS_PER_OZ)}</span>
+                        <span className="ml-4">
+                            <CurrencyValue usd={quote.price / GRAMS_PER_OZ} />
+                        </span>
                         <span className="ml-2 text-sm text-zinc-400">/ g</span>
                     </p>
                     <p className="max-w-3xl text-zinc-300">{config.intro}</p>
@@ -128,7 +139,11 @@ export default async function LocalePage({ params }: { params: Promise<{ locale:
                             {config.englishLink} →
                         </Link>
                         <p className="mt-4 flex flex-wrap gap-4 text-sm text-zinc-400">
-                            {LOCALE_PAGES.filter((p) => p.locale !== config.locale).map((p) => (
+                            {LOCALE_PAGES.filter(
+                                (p) =>
+                                    p.locale !== config.locale &&
+                                    p.canonicalEnglishPath === config.canonicalEnglishPath
+                            ).map((p) => (
                                 <Link
                                     key={p.locale}
                                     href={`/${p.locale}`}

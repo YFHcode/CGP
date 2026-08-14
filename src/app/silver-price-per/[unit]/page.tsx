@@ -100,7 +100,12 @@ export default async function SilverPricePerUnitPage({
         },
         {
             question: `How is the silver price per ${config.unit} calculated?`,
-            answer: config.context,
+            answer:
+                `Silver purity is stamped as fineness, not karat: .999 is fine silver, .958 is ` +
+                `Britannia standard, .925 is sterling, .900 is coin silver (pre-1965 US dimes and ` +
+                `quarters) and .800 is a common continental European standard. The table above starts ` +
+                `from the pure spot price per ${config.unit} and multiplies by each fineness to get ` +
+                `its melt value — there is no premium or discount beyond that percentage.`,
         },
     ];
 
