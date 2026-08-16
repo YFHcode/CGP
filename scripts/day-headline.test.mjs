@@ -16,6 +16,14 @@ function formatLongDate(iso) {
     return `${d} ${MONTH_NAMES[m - 1]} ${y}`;
 }
 
+/** Title-tag form: month, plus year only when it differs from the page's own year. */
+function formatShortMonthYear(iso, relativeToIso) {
+    const [y, m] = iso.split('-').map(Number);
+    const month = MONTH_NAMES[m - 1].slice(0, 3);
+    if (relativeToIso && Number(relativeToIso.split('-')[0]) === y) return month;
+    return `${month} ${y}`;
+}
+
 const MEANINGFUL_GAP_DAYS = 10;
 const BIG_MOVE_PCT = 3;
 
@@ -52,14 +60,14 @@ function computeDayHeadline(series, date, metalName) {
     if (highGap >= MEANINGFUL_GAP_DAYS && highGap >= lowGap) {
         return {
             text: `Highest closing price since ${formatLongDate(highSince.date)}`,
-            shortText: `Highest Since ${formatLongDate(highSince.date)}`,
+            shortText: `Highest Since ${formatShortMonthYear(highSince.date, date)}`,
             kind: 'high-since',
         };
     }
     if (lowGap >= MEANINGFUL_GAP_DAYS) {
         return {
             text: `Lowest closing price since ${formatLongDate(lowSince.date)}`,
-            shortText: `Lowest Since ${formatLongDate(lowSince.date)}`,
+            shortText: `Lowest Since ${formatShortMonthYear(lowSince.date, date)}`,
             kind: 'low-since',
         };
     }
@@ -137,7 +145,7 @@ test('"highest since" fires once the gap is meaningful', () => {
     const h = computeDayHeadline(series, target, 'Gold');
     assert.equal(h.kind, 'high-since');
     assert.ok(h.text.includes('1 January 2026'));
-    assert.equal(h.shortText, 'Highest Since 1 January 2026');
+    assert.equal(h.shortText, 'Highest Since Jan');
 });
 
 test('a big single-session move is flagged when nothing else applies', () => {
@@ -170,4 +178,78 @@ test('a small move that sets no record and isn\'t "since" anything gets no headl
         { date: '2026-03-03', close: 2003 },
     ];
     assert.equal(computeDayHeadline(flat, '2026-03-03', 'Gold'), null);
+});
+
+/**
+ * Title-length guards.
+ *
+ * Google truncates titles at roughly 60 characters. These archive titles
+ * previously ran 68–89 and lost their most clickable element — a headline
+ * like "Lowest Since 1 January 2016" was cut mid-phrase on a page ranking at
+ * position 1.5. The assertions below encode the budget rather than the exact
+ * wording, so the copy can change but the length discipline cannot silently
+ * regress.
+ */
+const TITLE_BUDGET = 62;
+
+/** Mirrors period-route.tsx: whole dollars once past $100. */
+function titleMoney(v) {
+    return v.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: v >= 100 ? 0 : 2,
+    });
+}
+
+test('titleMoney drops cents for gold-scale figures and keeps them for silver', () => {
+    assert.equal(titleMoney(4033.7), '$4,034');
+    assert.equal(titleMoney(1170.8), '$1,171');
+    assert.equal(titleMoney(56.85), '$56.85');
+    assert.equal(titleMoney(99.99), '$99.99');
+    assert.equal(titleMoney(100), '$100');
+});
+
+test('a day title with a "since" headline fits the title budget', () => {
+    // The real page that sits at position 1.5 in Search Console.
+    const title = `Gold Price on 1 November 2016: ${titleMoney(1170.8)} — Lowest Since ${formatShortMonthYear('2016-01-01')}`;
+    assert.ok(
+        title.length <= TITLE_BUDGET,
+        `title is ${title.length} chars, over the ${TITLE_BUDGET} budget: ${title}`
+    );
+});
+
+test('a month-range title fits the title budget', () => {
+    const title = `Gold Price in August 2026: ${titleMoney(4033.7)}–${titleMoney(4435.5)} per Ounce`;
+    assert.ok(
+        title.length <= TITLE_BUDGET,
+        `title is ${title.length} chars, over the ${TITLE_BUDGET} budget: ${title}`
+    );
+});
+
+test('an all-time-high day title fits the title budget', () => {
+    const title = `Gold Price on 23 January 2026: ${titleMoney(4976.2)} — All-Time High`;
+    assert.ok(
+        title.length <= TITLE_BUDGET,
+        `title is ${title.length} chars, over the ${TITLE_BUDGET} budget: ${title}`
+    );
+});
+
+test('a same-year reference date drops the redundant year', () => {
+    // "Highest Since Jan" on a February 2026 page can only mean January 2026.
+    assert.equal(formatShortMonthYear('2026-01-05', '2026-02-27'), 'Jan');
+});
+
+test('a reference date in a previous year keeps the year', () => {
+    // "Since Dec" on a February 2026 page would be ambiguous, so it stays.
+    assert.equal(formatShortMonthYear('2025-12-20', '2026-02-27'), 'Dec 2025');
+});
+
+test('the longest real archive title now fits the budget', () => {
+    // The worst case found by scanning all 839 built archive pages: the
+    // longest metal name, a long month, and a "since" headline.
+    const title = `Silver Price on 27 February 2026: ${titleMoney(92.68)} — Highest Since ${formatShortMonthYear('2026-01-05', '2026-02-27')}`;
+    assert.ok(
+        title.length <= TITLE_BUDGET,
+        `title is ${title.length} chars, over the ${TITLE_BUDGET} budget: ${title}`
+    );
 });

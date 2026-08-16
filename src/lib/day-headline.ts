@@ -1,5 +1,5 @@
 import type { HistoryPoint } from '@/types';
-import { formatLongDate } from './history-periods';
+import { formatLongDate, formatShortMonthYear } from './history-periods';
 
 /**
  * A single punchy headline for a day page, in the style of the daily
@@ -19,7 +19,12 @@ const BIG_MOVE_PCT = 3;
 
 export interface DayHeadline {
     text: string;
-    /** A compact variant for title tags, where the full sentence won't fit. */
+    /**
+     * A compact variant for title tags, where the full sentence won't fit.
+     * Reference dates are abbreviated to month and year here ("Lowest Since
+     * Jan 2016") because Google truncates titles at roughly 60 characters and
+     * the hook is what gets cut first.
+     */
     shortText: string;
     kind: 'all-time-high' | 'all-time-low' | 'high-since' | 'low-since' | 'big-move';
 }
@@ -76,14 +81,14 @@ export function computeDayHeadline(
     if (highGap >= MEANINGFUL_GAP_DAYS && highGap >= lowGap) {
         return {
             text: `Highest closing price since ${formatLongDate(highSince.date)}`,
-            shortText: `Highest Since ${formatLongDate(highSince.date)}`,
+            shortText: `Highest Since ${formatShortMonthYear(highSince.date, date)}`,
             kind: 'high-since',
         };
     }
     if (lowGap >= MEANINGFUL_GAP_DAYS) {
         return {
             text: `Lowest closing price since ${formatLongDate(lowSince.date)}`,
-            shortText: `Lowest Since ${formatLongDate(lowSince.date)}`,
+            shortText: `Lowest Since ${formatShortMonthYear(lowSince.date, date)}`,
             kind: 'low-since',
         };
     }
