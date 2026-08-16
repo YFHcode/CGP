@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-08-15T18:21:33.399Z",
+  "updatedAt": "2026-08-16T06:32:02.358Z",
   "metals": {
     "XAU": {
-      "timestamp": 1786818091,
+      "timestamp": 1786861921,
       "metal": "XAU",
       "currency": "USD",
       "exchange": "gold-api.com",
@@ -11,7 +11,7 @@
       "open_price": 4377.600098,
       "low_price": 4377.600098,
       "high_price": 4377.600098,
-      "open_time": 1786818091,
+      "open_time": 1786861921,
       "price": 4377.600098,
       "ch": 0,
       "chp": 0,
@@ -27,7 +27,7 @@
       "price_gram_10k": 58.64296305399959
     },
     "XAG": {
-      "timestamp": 1786818091,
+      "timestamp": 1786861921,
       "metal": "XAG",
       "currency": "USD",
       "exchange": "gold-api.com",
@@ -36,7 +36,7 @@
       "open_price": 64.827003,
       "low_price": 64.827003,
       "high_price": 64.827003,
-      "open_time": 1786818091,
+      "open_time": 1786861921,
       "price": 64.827003,
       "ch": 0,
       "chp": 0,
