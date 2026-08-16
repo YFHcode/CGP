@@ -63,6 +63,41 @@ export function formatLongDate(iso: string): string {
     return `${Number(match[3])} ${MONTH_NAMES[m - 1]} ${match[1]}`;
 }
 
+/**
+ * A month-and-year form ("Jan 2016") for title tags only.
+ *
+ * Titles are truncated by Google at roughly 60 characters, and a headline
+ * like "Lowest Since 1 January 2016" spends 14 of them on a date that is
+ * secondary to the page. This drops the day and abbreviates the month,
+ * saving six characters where they are scarcest.
+ *
+ * Deliberately not used for the page's *own* date: search queries are typed
+ * as "gold price on 18 september 2024", so the full form there matches the
+ * query text and gets bolded in results. Only the reference date inside a
+ * headline is shortened.
+ */
+export function formatShortMonthYear(iso: string, relativeToIso?: string): string {
+    const match = DAY_RE.exec(iso);
+    if (!match) return iso;
+
+    const m = Number(match[2]);
+    if (!isValidMonth(m)) return iso;
+
+    const month = MONTH_NAMES[m - 1].slice(0, 3);
+
+    // Within the same calendar year the year is redundant — "Highest Since
+    // Jan" on a February 2026 page can only mean January 2026 — and dropping
+    // it reclaims five more characters on exactly the titles that were still
+    // running long. Across a year boundary it is kept, because "Since Dec" on
+    // a February page would be genuinely ambiguous.
+    if (relativeToIso) {
+        const other = DAY_RE.exec(relativeToIso);
+        if (other && other[1] === match[1]) return month;
+    }
+
+    return `${month} ${match[1]}`;
+}
+
 /** Builds the canonical URL slug for an ISO key. */
 export function slugForKey(key: string, kind: PeriodKind): string {
     if (kind === 'year') return key;
