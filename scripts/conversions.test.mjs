@@ -120,6 +120,28 @@ test('positionInRange guards a collapsed or inverted range', () => {
     assert.ok(Number.isNaN(positionInRange(Number.NaN, 100, 200)));
 });
 
+const hasRangeData = (data) => data.high_price !== data.low_price;
+
+test('hasRangeData is true for a real day range', () => {
+    assert.equal(hasRangeData({ high_price: 4416.53, low_price: 4367.31 }), true);
+});
+
+test('hasRangeData is false for the keyless fallback shape (high === low)', () => {
+    // scripts/refresh-data.mjs's gold-api.com fallback sets
+    // high_price === low_price === price rather than inventing a range —
+    // this is the exact quote shape that produced three days of a flat
+    // "$X — $X" range and a 0.00% change on the live site (2026-08-14 to
+    // 2026-08-17) before this check existed.
+    assert.equal(hasRangeData({ high_price: 4396.2, low_price: 4396.2 }), false);
+});
+
+test('hasRangeData treats a genuinely flat trading day the same as no data', () => {
+    // A real high === low is indistinguishable from the fallback shape by
+    // this field alone, and both cases render the same honest "unavailable"
+    // UI, so there is nothing further to disambiguate here.
+    assert.equal(hasRangeData({ high_price: 2000, low_price: 2000 }), false);
+});
+
 test('troy ounce constant is the exact defined value', () => {
     assert.equal(GRAMS_PER_OZ, 31.1034768);
 });

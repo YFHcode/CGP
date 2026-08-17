@@ -38,8 +38,10 @@ jobs:
 
       - name: Refresh prices and history
         env:
-          # Optional: set this repo secret to override the in-source key.
-          GOLD_API_KEY: ${{ secrets.GOLD_API_KEY }}
+          # Optional: set this repo secret to override the in-source keys.
+          # Comma-separated — tried in order, so a revoked key can be
+          # replaced or reordered without a code change.
+          GOLD_API_KEYS: ${{ secrets.GOLD_API_KEYS }}
         run: node scripts/refresh-data.mjs
 
       - name: Summarise what was fetched

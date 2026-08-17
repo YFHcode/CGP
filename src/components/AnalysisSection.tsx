@@ -3,7 +3,7 @@
 import { BarChart3, Scale, TrendingUp } from 'lucide-react';
 
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { goldSilverRatio, positionInRange } from '@/lib/conversions';
+import { goldSilverRatio, positionInRange, hasRangeData } from '@/lib/conversions';
 import { formatMetalPrice, formatNumber, formatPercent } from '@/lib/currencies';
 import type { GoldPriceResponse } from '@/types';
 
@@ -28,6 +28,13 @@ export function AnalysisSection({ gold, silver }: AnalysisSectionProps) {
 
     const ratio = goldSilverRatio(gold.price, silver.price);
     const goldRangePosition = positionInRange(gold.price, gold.low_price, gold.high_price);
+
+    // Gold and silver are fetched independently (scripts/refresh-data.mjs),
+    // so one metal can land on the keyless fallback while the other still
+    // has real GoldAPI data — each is checked on its own rather than as a
+    // single site-wide flag.
+    const goldHasRange = hasRangeData(gold);
+    const silverHasRange = hasRangeData(silver);
 
     const goldUp = gold.ch >= 0;
     const silverUp = silver.ch >= 0;
@@ -63,29 +70,38 @@ export function AnalysisSection({ gold, silver }: AnalysisSectionProps) {
                             <BarChart3 className="h-6 w-6 text-blue-300" aria-hidden="true" />
                         </div>
                         <h3 className="mb-2 text-xl font-bold text-white">Gold day range</h3>
-                        <p className="mb-3 text-sm text-zinc-300">
-                            {formatMetalPrice(convert(gold.low_price), activeCurrency)} —{' '}
-                            {formatMetalPrice(convert(gold.high_price), activeCurrency)} per ounce
-                        </p>
-                        {Number.isFinite(goldRangePosition) && (
+                        {goldHasRange ? (
                             <>
-                                <div
-                                    className="h-2 w-full overflow-hidden rounded-full bg-zinc-800"
-                                    role="img"
-                                    aria-label={`Gold is trading ${goldRangePosition.toFixed(0)} percent of the way up its daily range`}
-                                >
-                                    <div
-                                        className="h-full rounded-full bg-gold-500"
-                                        style={{
-                                            width: `${Math.min(100, Math.max(0, goldRangePosition))}%`,
-                                        }}
-                                    />
-                                </div>
-                                <p className="mt-2 text-sm text-zinc-300">
-                                    Trading {goldRangePosition.toFixed(0)}% of the way up today&apos;s
-                                    range.
+                                <p className="mb-3 text-sm text-zinc-300">
+                                    {formatMetalPrice(convert(gold.low_price), activeCurrency)} —{' '}
+                                    {formatMetalPrice(convert(gold.high_price), activeCurrency)} per
+                                    ounce
                                 </p>
+                                {Number.isFinite(goldRangePosition) && (
+                                    <>
+                                        <div
+                                            className="h-2 w-full overflow-hidden rounded-full bg-zinc-800"
+                                            role="img"
+                                            aria-label={`Gold is trading ${goldRangePosition.toFixed(0)} percent of the way up its daily range`}
+                                        >
+                                            <div
+                                                className="h-full rounded-full bg-gold-500"
+                                                style={{
+                                                    width: `${Math.min(100, Math.max(0, goldRangePosition))}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <p className="mt-2 text-sm text-zinc-300">
+                                            Trading {goldRangePosition.toFixed(0)}% of the way up
+                                            today&apos;s range.
+                                        </p>
+                                    </>
+                                )}
                             </>
+                        ) : (
+                            <p className="text-sm text-zinc-400">
+                                Day range unavailable for this update.
+                            </p>
                         )}
                     </article>
 
@@ -100,27 +116,38 @@ export function AnalysisSection({ gold, silver }: AnalysisSectionProps) {
                                 <dt className="text-zinc-300">Gold</dt>
                                 <dd
                                     className={
-                                        goldUp ? 'font-medium text-green-300' : 'font-medium text-red-300'
+                                        !goldHasRange
+                                            ? 'font-medium text-zinc-500'
+                                            : goldUp
+                                              ? 'font-medium text-green-300'
+                                              : 'font-medium text-red-300'
                                     }
                                 >
-                                    {formatPercent(gold.chp)}
+                                    {goldHasRange ? formatPercent(gold.chp) : '—'}
                                 </dd>
                             </div>
                             <div className="flex items-center justify-between">
                                 <dt className="text-zinc-300">Silver</dt>
                                 <dd
                                     className={
-                                        silverUp ? 'font-medium text-green-300' : 'font-medium text-red-300'
+                                        !silverHasRange
+                                            ? 'font-medium text-zinc-500'
+                                            : silverUp
+                                              ? 'font-medium text-green-300'
+                                              : 'font-medium text-red-300'
                                     }
                                 >
-                                    {formatPercent(silver.chp)}
+                                    {silverHasRange ? formatPercent(silver.chp) : '—'}
                                 </dd>
                             </div>
                         </dl>
-                        <p className="mt-4 text-sm text-zinc-300">
-                            Previous close:{' '}
-                            {formatMetalPrice(convert(gold.prev_close_price), activeCurrency)} for gold.
-                        </p>
+                        {goldHasRange && (
+                            <p className="mt-4 text-sm text-zinc-300">
+                                Previous close:{' '}
+                                {formatMetalPrice(convert(gold.prev_close_price), activeCurrency)}{' '}
+                                for gold.
+                            </p>
+                        )}
                     </article>
                 </div>
             </div>

@@ -119,6 +119,19 @@ export function positionInRange(price: number, low: number, high: number): numbe
 }
 
 /**
+ * True when a quote carries a real day range, rather than the keyless
+ * gold-api.com fallback's shape (see scripts/refresh-data.mjs), which sets
+ * high_price === low_price === price rather than inventing a range when the
+ * primary provider's quota is exhausted. Rendering that as "$X — $X" or a
+ * flat 0.00% change reads as a broken market rather than the honest "we
+ * don't know" it actually is — this is the shared check both price displays
+ * use to hide the range/change UI instead.
+ */
+export function hasRangeData(data: { high_price: number; low_price: number }): boolean {
+    return data.high_price !== data.low_price;
+}
+
+/**
  * Silver purity is expressed as fineness (parts per thousand), not karat.
  *
  * These are the stamps actually found on silver: .925 on sterling jewellery

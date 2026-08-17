@@ -9,6 +9,7 @@ import {
     quoteToHistoryPoint,
     toArchiveEntry,
     mergeNewsArchive,
+    parseApiKeys,
 } from './refresh-data.mjs';
 
 const SAMPLE_CSV = `Date,Open,High,Low,Close,Volume
@@ -284,4 +285,27 @@ test('mergeSeries still honours an explicit finite cap', () => {
         { date: '2024-01-03', close: 3 },
     ];
     assert.equal(mergeSeries(existing, [], 2).length, 2);
+});
+
+test('parseApiKeys falls back to the default list when the env var is unset', () => {
+    assert.deepEqual(parseApiKeys(undefined, 'key-a,key-b'), ['key-a', 'key-b']);
+});
+
+test('parseApiKeys falls back when the env var is an empty string', () => {
+    // GitHub Actions passes an unset secret as '', not undefined — `||` (not
+    // `??`) is required so this still falls through to the default rather
+    // than producing a single blank credential.
+    assert.deepEqual(parseApiKeys('', 'key-a,key-b'), ['key-a', 'key-b']);
+});
+
+test('parseApiKeys uses the override when present', () => {
+    assert.deepEqual(parseApiKeys('key-x,key-y,key-z', 'key-a'), ['key-x', 'key-y', 'key-z']);
+});
+
+test('parseApiKeys trims whitespace and drops empty entries from a ragged list', () => {
+    assert.deepEqual(parseApiKeys(' key-x ,, key-y,', 'key-a'), ['key-x', 'key-y']);
+});
+
+test('parseApiKeys handles a single key with no commas', () => {
+    assert.deepEqual(parseApiKeys('only-one-key', 'key-a,key-b'), ['only-one-key']);
 });
