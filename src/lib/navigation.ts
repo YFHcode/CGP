@@ -99,6 +99,7 @@ export const NAV_GROUPS: NavGroup[] = [
                 links: [
                     { href: '/gold-price-calculator', label: 'Gold value calculator' },
                     { href: '/silver-price-calculator', label: 'Silver value calculator' },
+                    { href: '/gold-scrap-calculator', label: 'Scrap gold calculator' },
                     { href: '/melt-value', label: 'Coin melt value calculator' },
                 ],
             },
@@ -115,6 +116,10 @@ export const NAV_GROUPS: NavGroup[] = [
             {
                 title: 'Compare',
                 links: [{ href: '/gold-to-silver-ratio', label: 'Gold to silver ratio' }],
+            },
+            {
+                title: 'Developers',
+                links: [{ href: '/gold-price-api', label: 'Free price API (JSON)' }],
             },
         ],
     },
