@@ -204,7 +204,7 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
 
     const activeKind = CHART_KINDS.find((c) => c.key === kind)!;
     const subtitle = {
-        price: `Daily closing prices, ${activeMetal === 'gold' ? 'XAU' : 'XAG'}/${activeCurrency}`,
+        price: `Closing prices, ${activeMetal === 'gold' ? 'XAU' : 'XAG'}/${activeCurrency}`,
         compare:
             'How much each metal has gained or lost since the start of the range. This is ' +
             'performance, not price — gold still costs far more per ounce than silver.',

@@ -7,7 +7,8 @@ import { JsonLd } from '@/components/JsonLd';
 import { LastUpdated } from '@/components/LastUpdated';
 import { getPrices, getHistory } from '@/lib/prices';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
-import { breadcrumbSchema, pageMetadata, SITE_URL } from '@/lib/seo';
+import { breadcrumbSchema, datasetSchema, pageMetadata, SITE_URL } from '@/lib/seo';
+import { describeCoverage } from '@/lib/coverage';
 import { periodFaqSchema } from '@/lib/period-faq';
 
 /**
@@ -30,9 +31,9 @@ export const revalidate = 10800;
 export const metadata = pageMetadata({
     title: 'Free Gold & Silver Price API — JSON, No API Key',
     description:
-        'A free JSON API for live gold and silver prices plus 25+ years of daily historical ' +
-        'closes. No API key, no rate limit, CORS enabled. Prices per troy ounce, gram, kilogram, ' +
-        'tola and pavan.',
+        'A free JSON API for live gold and silver prices plus a historical close series going ' +
+        'back to 2000. No API key, no rate limit, CORS enabled. Prices per troy ounce, gram, ' +
+        'kilogram, tola and pavan.',
     path: '/gold-price-api',
     keywords: [
         'free gold price api',
@@ -83,10 +84,8 @@ export default async function GoldPriceApiPage() {
         },
     };
 
-    const coverage =
-        history.gold.length > 0
-            ? `${history.gold[0].date} to ${history.gold[history.gold.length - 1].date}`
-            : null;
+    const facts = describeCoverage(history.gold);
+    const coverage = facts ? `${facts.start} to ${facts.end}` : null;
 
     const questions = [
         {
@@ -107,13 +106,13 @@ export default async function GoldPriceApiPage() {
         },
         {
             question: 'How do I get historical gold prices?',
-            answer: coverage
+            answer: facts
                 ? `Add ?history=gold, ?history=silver or ?history=both to the endpoint. That ` +
-                  `returns the full series of daily closes as date and close pairs, currently ` +
-                  `covering ${coverage}. The same data is downloadable as CSV from the chart pages ` +
-                  `if you would rather work in a spreadsheet.`
+                  `returns the full series as date and close pairs — ${facts.sentence}, ` +
+                  `${facts.points.toLocaleString()} points in total. The same data is downloadable ` +
+                  `as CSV from the chart pages if you would rather work in a spreadsheet.`
                 : 'Add ?history=gold, ?history=silver or ?history=both to the endpoint to receive ' +
-                  'the full series of daily closes as date and close pairs.',
+                  'the full close series as date and close pairs.',
         },
         {
             question: 'Can I use it from a browser?',
@@ -144,14 +143,45 @@ export default async function GoldPriceApiPage() {
                         '@type': 'WebAPI',
                         name: 'ChartGoldPrice Gold & Silver Price API',
                         description:
-                            'Free JSON API for live gold and silver spot prices and daily historical closes.',
+                            'Free JSON API for live gold and silver spot prices and a historical close series.',
                         url: `${SITE_URL}/gold-price-api`,
-                        documentation: `${SITE_URL}/gold-price-api`,
+                        // schema.org recommends `documentation` point at a
+                        // machine-readable description of the interface where
+                        // one exists; the human page is already `url`.
+                        documentation: `${SITE_URL}/openapi.json`,
                         endpointUrl: ENDPOINT,
                         provider: { '@type': 'Organization', name: 'ChartGoldPrice', url: SITE_URL },
                         termsOfService: `${SITE_URL}/terms`,
                         isAccessibleForFree: true,
                     },
+                    // Dataset markup as well as WebAPI: Google Dataset Search
+                    // indexes the former and not the latter, and this page is
+                    // the canonical description of the data behind both.
+                    datasetSchema({
+                        name: 'Gold and silver price data',
+                        description: facts
+                            ? `Live gold and silver spot prices and a historical close series in ` +
+                              `USD (${facts.sentence}), available as a free JSON API with no key ` +
+                              `required.`
+                            : 'Live gold and silver spot prices and a historical close series in ' +
+                              'USD, available as a free JSON API with no key required.',
+                        path: '/gold-price-api',
+                        keywords: [
+                            'gold price',
+                            'silver price',
+                            'precious metals data',
+                            'free gold price api',
+                            'historical gold prices',
+                        ],
+                        variableMeasured: 'Gold and silver price (USD per troy ounce)',
+                        temporalCoverage: coverage ? coverage.replace(' to ', '/') : null,
+                        distribution: [
+                            {
+                                encodingFormat: 'application/json',
+                                contentUrl: `${SITE_URL}/api/data?history=both`,
+                            },
+                        ],
+                    }),
                 ]}
             />
             <Breadcrumbs trail={trail} />
@@ -165,9 +195,10 @@ export default async function GoldPriceApiPage() {
                         </h1>
                     </div>
                     <p className="max-w-3xl text-zinc-300">
-                        Live gold and silver spot prices and {history.gold.length.toLocaleString()}{' '}
-                        daily historical closes, as JSON. No API key, no account, no rate limit, and
-                        CORS enabled so you can call it straight from the browser.
+                        Live gold and silver spot prices plus{' '}
+                        {history.gold.length.toLocaleString()} historical closes
+                        {facts ? ` (${facts.sentence})` : ''}, as JSON. No API key, no account, no
+                        rate limit, and CORS enabled so you can call it straight from the browser.
                     </p>
                     <div className="mt-4">
                         <LastUpdated
@@ -184,6 +215,14 @@ export default async function GoldPriceApiPage() {
                     <div className="overflow-x-auto rounded-xl border border-white/10 bg-zinc-900/60 p-4">
                         <code className="whitespace-nowrap text-sm text-gold-300">GET {ENDPOINT}</code>
                     </div>
+                    <p className="mt-3 text-sm text-zinc-400">
+                        There is an{' '}
+                        <a href="/openapi.json" className="text-gold-400 hover:text-gold-300">
+                            OpenAPI 3.0 specification
+                        </a>{' '}
+                        for this endpoint, which Postman, Insomnia, Swagger UI and most client
+                        generators can import directly.
+                    </p>
 
                     <h3 className="mb-3 mt-8 text-lg font-semibold text-white">Query parameters</h3>
                     <div className="overflow-x-auto">
@@ -208,8 +247,8 @@ export default async function GoldPriceApiPage() {
                                         gold | silver | both
                                     </td>
                                     <td className="px-4 py-3 text-zinc-400">
-                                        Includes the full series of daily closes. Omit it for the
-                                        small current-price response.
+                                        Includes the full close series. Omit it for the small
+                                        current-price response.
                                     </td>
                                 </tr>
                             </tbody>

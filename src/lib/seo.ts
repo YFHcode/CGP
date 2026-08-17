@@ -62,6 +62,77 @@ interface BreadcrumbEntry {
     path: string;
 }
 
+interface DatasetOptions {
+    name: string;
+    description: string;
+    /** Path relative to the site root, e.g. "/gold-price-history". */
+    path: string;
+    keywords: string[];
+    /** What the numbers actually are, e.g. "Gold price (USD per troy ounce)". */
+    variableMeasured: string;
+    /** ISO interval "YYYY-MM-DD/YYYY-MM-DD". Omitted when the series is empty. */
+    temporalCoverage?: string | null;
+    /**
+     * Machine-readable copies of the data. Every contentUrl must actually be
+     * fetchable — Google Dataset Search follows them, and advertising a
+     * download that 404s is worse than advertising none.
+     */
+    distribution?: { encodingFormat: string; contentUrl: string }[];
+}
+
+/**
+ * schema.org/Dataset markup, which is what Google Dataset Search indexes.
+ *
+ * Dataset Search is a free, permanent distribution channel for exactly the
+ * asset this site has and most competitors don't — a price record reaching
+ * back to 2000 — and it requires no submission, only correct markup. Describe
+ * the cadence honestly via describeCoverage: Dataset Search's audience is
+ * data consumers, who will notice. This was previously
+ * present on /silver-price-history alone, so the gold series and the API were
+ * both invisible to it.
+ *
+ * Centralised rather than copied per page: the same "filter, then spread a
+ * literal" pattern duplicated across three files is how the hreflang cluster
+ * drifted earlier, and a Dataset block is long enough that a fourth copy
+ * would drift the same way.
+ */
+export function datasetSchema({
+    name,
+    description,
+    path,
+    keywords,
+    variableMeasured,
+    temporalCoverage,
+    distribution,
+}: DatasetOptions) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'Dataset',
+        name,
+        description,
+        url: `${SITE_URL}${path}`,
+        license: `${SITE_URL}/terms`,
+        isAccessibleForFree: true,
+        keywords,
+        variableMeasured,
+        creator: {
+            '@type': 'Organization',
+            name: SITE_NAME,
+            url: SITE_URL,
+        },
+        ...(temporalCoverage ? { temporalCoverage } : {}),
+        ...(distribution && distribution.length > 0
+            ? {
+                  distribution: distribution.map((d) => ({
+                      '@type': 'DataDownload',
+                      encodingFormat: d.encodingFormat,
+                      contentUrl: d.contentUrl,
+                  })),
+              }
+            : {}),
+    };
+}
+
 /** BreadcrumbList schema matching the current page, not a hardcoded trail. */
 export function breadcrumbSchema(entries: BreadcrumbEntry[]) {
     return {
