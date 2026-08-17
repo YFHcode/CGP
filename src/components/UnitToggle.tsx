@@ -8,6 +8,13 @@ interface ToggleGroupProps<T extends string> {
     options: readonly T[];
     value: T;
     onChange: (value: T) => void;
+    /**
+     * Optional display text for an option, when the raw value is not what a
+     * reader should see — e.g. showing "9K (375)" for the karat value "9K",
+     * which pairs the karat with the hallmark stamped on UK jewellery.
+     * Defaults to the value itself.
+     */
+    renderLabel?: (option: T) => React.ReactNode;
     /** Optional secondary line rendered under each option label. */
     renderHint?: (option: T) => React.ReactNode;
     className?: string;
@@ -25,6 +32,7 @@ export function ToggleGroup<T extends string>({
     options,
     value,
     onChange,
+    renderLabel,
     renderHint,
     className,
     size = 'md',
@@ -67,7 +75,7 @@ export function ToggleGroup<T extends string>({
                                 : 'text-zinc-300 hover:bg-white/5 hover:text-white'
                         )}
                     >
-                        {option}
+                        {renderLabel ? renderLabel(option) : option}
                         {renderHint && <span className="block text-[0.7rem] opacity-80">{renderHint(option)}</span>}
                     </button>
                 );

@@ -48,6 +48,7 @@ Silver fineness: .999 fine, .925 sterling, .900 coin silver.
 ## Machine-readable data
 
 - JSON API: ${SITE_URL}/api/data — current prices, plus optional history
+- API docs: ${SITE_URL}/gold-price-api — endpoint, parameters, examples, licence
 - Historical coverage: ${coverage} (daily closes, USD per troy ounce)
 - Source: ${history.source ?? 'unknown'}
 
@@ -67,6 +68,8 @@ Silver fineness: .999 fine, .925 sterling, .900 coin silver.
 - ${SITE_URL}/silver-price-per/{gram,ounce,kilo,tola,pavan} — by unit and fineness
 - ${SITE_URL}/gold-price-in/{usd,eur,gbp,inr,...} — price in local currency
 - ${SITE_URL}/gold-price-calculator — value jewellery or bullion by weight and purity
+- ${SITE_URL}/gold-scrap-calculator — scrap gold value and what buyers actually pay
+- ${SITE_URL}/melt-value — coin melt values and junk silver calculator
 
 ## Usage
 

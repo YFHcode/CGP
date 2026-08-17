@@ -123,6 +123,16 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         label: 'Gold price in GBP',
         description: 'Gold in pounds sterling per gram, ounce and kilogram.',
     },
+    meltValue: {
+        href: '/melt-value',
+        label: 'Coin melt values',
+        description: 'Junk silver calculator plus melt values for US and bullion coins.',
+    },
+    scrapCalculator: {
+        href: '/gold-scrap-calculator',
+        label: 'Scrap gold calculator',
+        description: 'What scrap gold is worth, and what refiners and jewellers actually pay.',
+    },
     goldUk: {
         href: '/uk',
         label: 'Gold price UK',
