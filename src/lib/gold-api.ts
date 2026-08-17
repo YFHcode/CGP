@@ -2,9 +2,27 @@ import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { GoldPriceResponse, MetalSymbol } from '@/types';
 
-// Kept in source deliberately (free tier). Env var wins when present so the key
-// can be rotated without a code change.
-const API_KEY = process.env.GOLD_API_KEY || 'goldapi-n4hsmi9298tt-io';
+/**
+ * Multiple free-tier accounts, tried in order (see scripts/refresh-data.mjs
+ * for the same pattern and the quota math behind it). Each key is capped at
+ * 100 requests/month; this path is only hit when the committed snapshot is
+ * empty or stale, so it rarely spends quota, but should still fail over to
+ * the next account rather than surface a dead price card.
+ *
+ * Kept in source deliberately (free tier). GOLD_API_KEYS overrides the whole
+ * comma-separated list so a revoked key can be rotated without a code change.
+ */
+const API_KEYS = (
+    process.env.GOLD_API_KEYS ||
+    [
+        'goldapi-n4hsmi9298tt-io',
+        'goldapi-9a371fad2ba3dda05b80cbef52a3f66e-io',
+        'goldapi-d09a96191256c258ed8dd3f43e675d39-io',
+    ].join(',')
+)
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean);
 const BASE_URL = 'https://www.goldapi.io/api';
 
 /** 8 hours. */
@@ -16,11 +34,16 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 4;
 
-async function fetchMetalPrice(symbol: MetalSymbol, attempt = 1): Promise<GoldPriceResponse> {
+async function fetchMetalPrice(
+    symbol: MetalSymbol,
+    keyIndex = 0,
+    attempt = 1
+): Promise<GoldPriceResponse> {
+    const key = API_KEYS[keyIndex];
     const response = await fetch(`${BASE_URL}/${symbol}/USD`, {
         method: 'GET',
         headers: {
-            'x-access-token': API_KEY,
+            'x-access-token': key,
             'Content-Type': 'application/json',
         },
     });
@@ -34,10 +57,20 @@ async function fetchMetalPrice(symbol: MetalSymbol, attempt = 1): Promise<GoldPr
         if (RETRY_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS) {
             const delay = 500 * 2 ** (attempt - 1); // 500ms, 1s, 2s
             console.warn(
-                `[GoldAPI] ${symbol} got ${response.status}; retrying in ${delay}ms (attempt ${attempt}/${MAX_ATTEMPTS})`
+                `[GoldAPI] ${symbol} got ${response.status} on key ${keyIndex + 1}/${API_KEYS.length}; retrying in ${delay}ms (attempt ${attempt}/${MAX_ATTEMPTS})`
             );
             await sleep(delay);
-            return fetchMetalPrice(symbol, attempt + 1);
+            return fetchMetalPrice(symbol, keyIndex, attempt + 1);
+        }
+
+        // Retries exhausted on this key, or a non-retryable status (401/403 —
+        // almost always that account's monthly quota is spent). Try the next
+        // configured account before giving up on GoldAPI entirely.
+        if (keyIndex + 1 < API_KEYS.length) {
+            console.warn(
+                `[GoldAPI] ${symbol} key ${keyIndex + 1}/${API_KEYS.length} failed (${response.status}); trying next key`
+            );
+            return fetchMetalPrice(symbol, keyIndex + 1, 1);
         }
 
         throw new Error(
@@ -50,6 +83,9 @@ async function fetchMetalPrice(symbol: MetalSymbol, attempt = 1): Promise<GoldPr
     // A 200 with no usable price still has to count as a failure, otherwise a
     // quota-exceeded body gets cached as if it were a real quote.
     if (!Number.isFinite(data?.price) || data.price <= 0) {
+        if (keyIndex + 1 < API_KEYS.length) {
+            return fetchMetalPrice(symbol, keyIndex + 1, 1);
+        }
         throw new Error(`GoldAPI ${symbol}: response carried no usable price`);
     }
 

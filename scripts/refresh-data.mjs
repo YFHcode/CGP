@@ -23,7 +23,46 @@ const HISTORY_FILE = join(DATA_DIR, 'history.json');
 const NEWS_FILE = join(DATA_DIR, 'news-archive.json');
 const RATES_FILE = join(DATA_DIR, 'rates.json');
 
-const GOLD_API_KEY = process.env.GOLD_API_KEY || 'goldapi-n4hsmi9298tt-io';
+/**
+ * Splits a comma-separated key list, trimming whitespace and dropping empty
+ * entries — so a trailing comma or accidental double-comma in a secret
+ * doesn't produce a blank credential that fails every request that reaches
+ * it. `||` not `??`: an unset or empty-string env var falls through to the
+ * default rather than producing a single blank key.
+ */
+export function parseApiKeys(envValue, defaultList) {
+    const source = envValue || defaultList;
+    return source
+        .split(',')
+        .map((key) => key.trim())
+        .filter(Boolean);
+}
+
+/**
+ * Multiple free-tier accounts, tried in order.
+ *
+ * Each GoldAPI free key is capped at 100 requests/month. Two runs/day for
+ * two metals is ~122/month — already over a single key's quota, which is
+ * exactly what took the primary source down and forced the gold-api.com
+ * fallback for three days straight (2026-08-14 to 2026-08-17). Three keys
+ * give ~300/month of combined headroom, comfortably covering the schedule.
+ *
+ * This is a waterfall, not parallel calls: only one quote is needed per
+ * request, so trying key 2 is only attempted after key 1 fails (almost
+ * always because its month's quota is exhausted), and key 3 only after
+ * both of those fail. GOLD_API_KEYS overrides the whole list as a
+ * comma-separated string, so a revoked key can be swapped without a code
+ * change.
+ */
+const GOLD_API_KEYS = parseApiKeys(
+    process.env.GOLD_API_KEYS,
+    [
+        'goldapi-n4hsmi9298tt-io',
+        'goldapi-9a371fad2ba3dda05b80cbef52a3f66e-io',
+        'goldapi-d09a96191256c258ed8dd3f43e675d39-io',
+    ].join(',')
+);
+
 // Overridable so the pipeline can be exercised against a local stub.
 const GOLD_API_URL = process.env.GOLD_API_URL || 'https://www.goldapi.io/api';
 
@@ -292,18 +331,39 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
     }
 }
 
+/**
+ * Tries each configured GoldAPI key in order. A 401/403 almost always means
+ * that account's monthly quota is spent, not that the credential is invalid,
+ * so it is worth trying the next one rather than failing straight to the
+ * keyless fallback and losing the richer fields it can't provide.
+ */
 async function fetchQuoteFromGoldApi(symbol) {
-    const res = await fetchWithTimeout(`${GOLD_API_URL}/${symbol}/USD`, {
-        headers: { 'x-access-token': GOLD_API_KEY, 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) {
-        throw new Error(`GoldAPI ${symbol}: ${res.status} ${res.statusText}`);
+    let lastError;
+
+    for (const key of GOLD_API_KEYS) {
+        try {
+            const res = await fetchWithTimeout(`${GOLD_API_URL}/${symbol}/USD`, {
+                headers: { 'x-access-token': key, 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) {
+                const body = await res.text().catch(() => '');
+                lastError = new Error(
+                    `GoldAPI ${symbol}: ${res.status} ${res.statusText} ${body}`.trim()
+                );
+                continue;
+            }
+            const data = await res.json();
+            if (!isValidQuote(data)) {
+                lastError = new Error(`GoldAPI ${symbol}: response carried no usable price`);
+                continue;
+            }
+            return data;
+        } catch (error) {
+            lastError = error;
+        }
     }
-    const data = await res.json();
-    if (!isValidQuote(data)) {
-        throw new Error(`GoldAPI ${symbol}: response carried no usable price`);
-    }
-    return data;
+
+    throw lastError ?? new Error(`GoldAPI ${symbol}: no keys configured`);
 }
 
 /**
