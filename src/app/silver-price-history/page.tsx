@@ -8,8 +8,9 @@ import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getHistory } from '@/lib/prices';
-import { breadcrumbSchema, pageMetadata, SITE_URL } from '@/lib/seo';
+import { breadcrumbSchema, datasetSchema, pageMetadata, SITE_URL } from '@/lib/seo';
 import { localeAlternates } from '@/lib/locale-pages';
+import { describeCoverage } from '@/lib/coverage';
 import { annualReturns, computeDrawdowns } from '@/lib/insights-metrics';
 import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
 
@@ -29,7 +30,7 @@ const baseMetadata = pageMetadata({
     description:
         'Historical silver prices with interactive charts from one week to the full record, ' +
         'annual returns by year, the largest drawdowns on record, and a downloadable CSV of ' +
-        'every daily close.',
+        'every close we hold.',
     path: '/silver-price-history',
     keywords: [
         'silver price history',
@@ -58,36 +59,31 @@ export default async function SilverPriceHistoryPage() {
     const drawdowns = series.length > 0 ? computeDrawdowns(series) : null;
 
     const trail = [{ name: 'Silver price history', href: '/silver-price-history' }];
-    const coverage =
-        series.length > 0 ? `${series[0].date} to ${series[series.length - 1].date}` : null;
+    const facts = describeCoverage(series);
+    const coverage = facts ? `${facts.start} to ${facts.end}` : null;
 
     return (
         <>
             <JsonLd
                 schema={[
                     breadcrumbSchema(trail.map((c) => ({ name: c.name, path: c.href }))),
-                    ...(coverage
-                        ? [
-                              {
-                                  '@context': 'https://schema.org',
-                                  '@type': 'Dataset',
-                                  name: 'Silver price history',
-                                  description:
-                                      'Daily silver closing prices in USD per troy ounce, with annual returns and drawdowns.',
-                                  url: `${SITE_URL}/silver-price-history`,
-                                  license: `${SITE_URL}/terms`,
-                                  isAccessibleForFree: true,
-                                  keywords: ['silver price', 'silver price history', 'precious metals data'],
-                                  temporalCoverage: coverage.replace(' to ', '/'),
-                                  variableMeasured: 'Silver price (USD per troy ounce)',
-                                  creator: {
-                                      '@type': 'Organization',
-                                      name: 'ChartGoldPrice',
-                                      url: SITE_URL,
-                                  },
-                              },
-                          ]
-                        : []),
+                    datasetSchema({
+                        name: 'Silver price history',
+                        description: facts
+                            ? `Silver closing prices in USD per troy ounce — ${facts.sentence} — ` +
+                              'with annual returns and drawdowns.'
+                            : 'Silver closing prices in USD per troy ounce, with annual returns and drawdowns.',
+                        path: '/silver-price-history',
+                        keywords: ['silver price', 'silver price history', 'precious metals data'],
+                        variableMeasured: 'Silver price (USD per troy ounce)',
+                        temporalCoverage: coverage ? coverage.replace(' to ', '/') : null,
+                        distribution: [
+                            {
+                                encodingFormat: 'application/json',
+                                contentUrl: `${SITE_URL}/api/data?history=silver`,
+                            },
+                        ],
+                    }),
                 ]}
             />
             <Breadcrumbs trail={trail} />
@@ -101,10 +97,9 @@ export default async function SilverPriceHistoryPage() {
                         </h1>
                     </div>
                     <p className="mx-auto max-w-3xl text-center text-zinc-300">
-                        Every daily silver close we hold
-                        {coverage ? `, covering ${coverage}` : ''} — charted from one week to the full
-                        record, with annual returns, the deepest drawdowns, and the underlying data
-                        available to download.
+                        Every silver close we hold{facts ? ` — ${facts.sentence}` : ''} — charted
+                        from one week to the full record, with annual returns, the deepest
+                        drawdowns, and the underlying data available to download.
                     </p>
                 </div>
             </section>

@@ -65,7 +65,7 @@ export async function GET(request: Request) {
                     gold: history.gold.length,
                     silver: history.silver.length,
                 },
-                usage: `Add ?history=gold, ?history=silver or ?history=both to include daily closes`,
+                usage: `Add ?history=gold, ?history=silver or ?history=both to include the close series`,
                 gold: includeGold ? history.gold : undefined,
                 silver: includeSilver ? history.silver : undefined,
             },

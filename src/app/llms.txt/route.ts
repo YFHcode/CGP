@@ -1,5 +1,6 @@
 import { getPrices, getHistory } from '@/lib/prices';
 import { SITE_URL } from '@/lib/navigation';
+import { describeCoverage } from '@/lib/coverage';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 
 /**
@@ -23,10 +24,8 @@ export async function GET() {
     const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);
 
     const perGram = (ozPrice: number) => (ozPrice / GRAMS_PER_OZ).toFixed(2);
-    const coverage =
-        history.gold.length > 0
-            ? `${history.gold[0].date} to ${history.gold[history.gold.length - 1].date}`
-            : 'unavailable';
+    const facts = describeCoverage(history.gold);
+    const coverage = facts ? facts.sentence : 'unavailable';
 
     const body = `# ChartGoldPrice
 
@@ -48,8 +47,9 @@ Silver fineness: .999 fine, .925 sterling, .900 coin silver.
 ## Machine-readable data
 
 - JSON API: ${SITE_URL}/api/data — current prices, plus optional history
+- OpenAPI spec: ${SITE_URL}/openapi.json — machine-readable description of the API
 - API docs: ${SITE_URL}/gold-price-api — endpoint, parameters, examples, licence
-- Historical coverage: ${coverage} (daily closes, USD per troy ounce)
+- Historical coverage: ${coverage} (USD per troy ounce, ${history.gold.length} points)
 - Source: ${history.source ?? 'unknown'}
 
 ## Key pages

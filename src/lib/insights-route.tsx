@@ -127,7 +127,7 @@ export async function renderInsightsPage(metal: MetalSymbol) {
                         '@context': 'https://schema.org',
                         '@type': 'Dataset',
                         name: `${route.name} price analytics`,
-                        description: `Moving averages, volatility, drawdowns, annual returns and seasonality computed from ${name} daily closing prices.`,
+                        description: `Moving averages, volatility, drawdowns, annual returns and seasonality computed from ${name} closing prices.`,
                         url: `${SITE_URL}${path}`,
                         license: `${SITE_URL}/terms`,
                         isAccessibleForFree: true,

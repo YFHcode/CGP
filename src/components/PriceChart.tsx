@@ -158,7 +158,7 @@ export function PriceChart(props: PriceChartProps) {
                     <div>
                         <h2 className="text-2xl font-bold text-white">{title}</h2>
                         <p className="text-sm text-zinc-400">
-                            Daily closing prices, {symbol}/{activeCurrency}
+                            Closing prices, {symbol}/{activeCurrency}
                         </p>
                     </div>
 
@@ -292,7 +292,9 @@ export function PriceChart(props: PriceChartProps) {
 
                 {hasData && (
                     <p className="mt-3 text-xs text-zinc-400">
-                        {data.length} daily closes
+                        {/* "closes", not "daily closes": the long ranges reach
+                            back into the monthly portion of the record. */}
+                        {data.length} closes
                         {source ? ` · Source: ${source}` : ''}
                         {currency !== activeCurrency
                             ? ` · ${currency} rates unavailable, showing ${activeCurrency}`

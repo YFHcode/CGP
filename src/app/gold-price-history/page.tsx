@@ -7,7 +7,8 @@ import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getHistory } from '@/lib/prices';
-import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
+import { breadcrumbSchema, datasetSchema, pageMetadata, SITE_URL } from '@/lib/seo';
+import { describeCoverage } from '@/lib/coverage';
 import { localeAlternates } from '@/lib/locale-pages';
 
 const baseMetadata = pageMetadata({
@@ -54,10 +55,33 @@ const MILESTONES = [
 
 export default async function GoldPriceHistoryPage() {
   const history = await getHistory();
+  const series = history.gold;
+  const facts = describeCoverage(series);
+  const coverage = facts ? `${facts.start}/${facts.end}` : null;
 
   return (
     <>
-      <JsonLd schema={breadcrumbSchema([{ name: 'Gold price history', path: '/gold-price-history' }])} />
+      <JsonLd
+        schema={[
+          breadcrumbSchema([{ name: 'Gold price history', path: '/gold-price-history' }]),
+          datasetSchema({
+            name: 'Gold price history',
+            description: facts
+              ? `Gold closing prices in USD per troy ounce — ${facts.sentence}.`
+              : 'Gold closing prices in USD per troy ounce.',
+            path: '/gold-price-history',
+            keywords: ['gold price', 'gold price history', 'precious metals data'],
+            variableMeasured: 'Gold price (USD per troy ounce)',
+            temporalCoverage: coverage,
+            distribution: [
+              {
+                encodingFormat: 'application/json',
+                contentUrl: `${SITE_URL}/api/data?history=gold`,
+              },
+            ],
+          }),
+        ]}
+      />
       <Breadcrumbs trail={[{ name: 'Gold price history', href: '/gold-price-history' }]} />
 
       <section className="bg-zinc-900/50 py-12">
@@ -67,7 +91,7 @@ export default async function GoldPriceHistoryPage() {
             <h1 className="text-4xl font-bold text-white md:text-5xl">Gold Price History</h1>
           </div>
           <p className="mx-auto max-w-3xl text-center text-zinc-300">
-            Daily closing prices for gold and silver over the past week, month, six months and year.
+            Closing prices for gold and silver over the past week, month, six months and year.
             Switch metals and currencies to compare how each has moved.
           </p>
         </div>
