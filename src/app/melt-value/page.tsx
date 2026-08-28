@@ -241,10 +241,10 @@ export default async function MeltValueIndexPage() {
                 links={relatedLinks(
                     'silverCalculator',
                     'calculator',
-                    'silverToday',
-                    'goldToday',
-                    'ratio',
-                    'silverChart'
+                    'scrapCalculator',
+                    'silverPerGram',
+                    'perGram',
+                    'ratio'
                 )}
             />
         </>

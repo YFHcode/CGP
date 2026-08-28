@@ -280,11 +280,11 @@ export async function renderInsightsPage(metal: MetalSymbol) {
             <RelatedLinks
                 links={relatedLinks(
                     metal === 'XAU' ? 'goldToday' : 'silverToday',
+                    metal === 'XAU' ? 'goldForecast' : 'silverForecast',
                     metal === 'XAU' ? 'goldArchive' : 'silverArchive',
                     metal === 'XAU' ? 'goldChart' : 'silverChart',
                     'calculator',
-                    'ratio',
-                    'news'
+                    'ratio'
                 )}
             />
         </>

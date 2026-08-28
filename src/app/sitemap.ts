@@ -26,7 +26,7 @@ import type { HistoryPoint } from "@/types";
  * The backfill makes roughly 6,900 day pages per metal renderable instead of
  * ~770. Listing every one would take this sitemap past 14,000 URLs in a single
  * step, on a domain where 3,422 impressions a week already sit at position 51+
- * earning no clicks. So the listing opens deliberately, in two bands:
+ * earning no clicks. So the listing opens deliberately, in three bands:
  *
  *  - ARCHIVE_DAY_FROM: the recent era, where dated queries actually convert
  *    ("gold price on 18 september 2024" ranks at position 3.6).
@@ -34,10 +34,30 @@ import type { HistoryPoint } from "@/types";
  *    demand for. These seven carry the bulk of the pre-2024 year-specific
  *    impressions, so they earn their listing on evidence rather than on the
  *    assumption that more URLs is better.
+ *  - Notable days: record highs and lows, each year's and month's extremes, and
+ *    the largest single-day moves, wherever they fall.
  *
- * Everything else still renders and stays reachable — it is simply not
- * advertised until it has a reason to be. Both bands are env-overridable, so
- * widening later is a config change rather than a code change.
+ * The third band exists because the first two described a bound the rest of the
+ * site did not honour. The milestone timeline on /gold-price-insights and
+ * /silver-price-insights links every notable day directly, which put 1,199 day
+ * pages across eighteen otherwise-excluded years one click from an indexed
+ * page — crawlable and discovered, but with no lastmod or priority to crawl
+ * them by. Withholding the listing did not withhold the crawl; it only
+ * withheld the signal. These are also the day pages most worth indexing: a
+ * record high or a 3% session is the one kind of day whose page says something
+ * no other page on the site says.
+ *
+ * Ordinary days outside all three bands still render and stay reachable — they
+ * are simply not advertised until they have a reason to be. The two configured
+ * bands are env-overridable, so widening later is a config change rather than a
+ * code change.
+ *
+ * One gap between listing and linking remains by design: each day page links to
+ * the day before and after it, so an unlisted neighbour is always one click
+ * from a listed page. Closing that would mean listing all ~12,900 day pages,
+ * which is the outcome these bands exist to avoid. Sequential navigation is not
+ * promotion; the milestone timeline was, which is why only that one was
+ * reconciled.
  */
 const ARCHIVE_DAY_FROM = process.env.ARCHIVE_DAY_FROM || "2024-08-01";
 
@@ -52,14 +72,20 @@ const ARCHIVE_DAY_YEARS = new Set(
  * Whether one day-archive period is advertised. Exported so the rule that
  * decides what gets published is testable on its own, rather than only
  * observable by diffing a generated sitemap.
+ *
+ * `notable` is passed in rather than derived here because deriving it re-walks
+ * the entire series; the caller computes it once per metal and reuses it.
  */
 export function isListedArchiveDay(
   periodKey: string,
+  notable: ReadonlySet<string> = new Set(),
   from: string = ARCHIVE_DAY_FROM,
   years: Set<string> = ARCHIVE_DAY_YEARS,
 ): boolean {
   if (typeof periodKey !== "string" || periodKey.length < 4) return false;
-  return periodKey >= from || years.has(periodKey.slice(0, 4));
+  if (periodKey >= from) return true;
+  if (years.has(periodKey.slice(0, 4))) return true;
+  return notable.has(periodKey);
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -138,6 +164,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.8,
     },
+    // Omitted entirely until now: both forecast pages shipped, were linked
+    // from the homepage and were crawlable, but were never advertised.
+    {
+      url: `${SITE_URL}/gold-price-forecast`,
+      changeFrequency: "daily",
+      priority: 0.85,
+    },
+    {
+      url: `${SITE_URL}/silver-price-forecast`,
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
     { url: `${SITE_URL}/gold-price`, changeFrequency: "daily", priority: 0.85 },
     {
       url: `${SITE_URL}/silver-price`,
@@ -209,7 +247,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Every day is indexable now that each carries a real, computed
     // headline and week/month/year narrative rather than a bare stats
     // table. Notable days (records, big moves) get a higher priority —
-    // they're the ones actually worth a crawler's first look.
+    // they're the ones actually worth a crawler's first look — and are
+    // listed wherever they fall, since the insights timeline links them all.
     //
     // notableDaySet is computed once outside the map: it re-derives every
     // record and big-move in the whole series, so calling it per-day would
@@ -217,7 +256,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(() => {
       const notable = notableDaySet(series);
       return listPeriods(series, "day")
-        .filter((period) => isListedArchiveDay(period))
+        .filter((period) => isListedArchiveDay(period, notable))
         .map((period) => ({
           url: `${SITE_URL}/${base}/${slugForKey(period, "day")}`,
           lastModified: new Date(`${period}T00:00:00Z`),

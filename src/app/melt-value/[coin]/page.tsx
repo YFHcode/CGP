@@ -256,12 +256,13 @@ export default async function CoinMeltValuePage({
             <RelatedLinks
                 links={
                     coin.metal === 'gold'
-                        ? relatedLinks('calculator', 'goldToday', 'goldChart', 'goldArchive', 'ratio')
+                        ? relatedLinks('calculator', 'scrapCalculator', 'meltValue', 'goldToday', 'perGram', 'ratio')
                         : relatedLinks(
                               'silverCalculator',
+                              'meltValue',
                               'silverToday',
+                              'silverPerGram',
                               'silverChart',
-                              'silverArchive',
                               'ratio'
                           )
                 }

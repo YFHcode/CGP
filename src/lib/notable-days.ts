@@ -1,18 +1,25 @@
 import type { HistoryPoint } from '@/types';
 
 /**
- * Decides which individual days are worth indexing.
+ * Decides which individual days are distinctive enough to promote.
  *
  * A thousand structurally identical day pages on a young domain will mostly
  * land in "Crawled — currently not indexed": Google samples them, judges the
  * rest to add little, and moves on. That is a content and authority problem,
  * not a URL problem — renaming the slugs would not change it.
  *
- * So routine days stay live, crawlable and linked (noindex, follow) while only
- * genuinely distinctive days compete for indexing. That concentrates crawl
- * budget and internal authority on the month and year pages, which are also
- * where the real search demand is: "gold price November 2024" is searched,
- * "gold price on 4 November 2024" essentially is not.
+ * So the days this returns get promoted while routine days stay live, linked
+ * and crawlable but unadvertised. That concentrates crawl budget and internal
+ * authority on the month and year pages, which are also where the real search
+ * demand is: "gold price November 2024" is searched, "gold price on 4 November
+ * 2024" essentially is not.
+ *
+ * Promotion means two concrete things, both in src/app/sitemap.ts: a notable
+ * day is listed in the sitemap wherever it falls, outside the recent-era and
+ * demand-year bands, and it carries a higher priority than a routine day. It
+ * does NOT mean routine days are noindexed — an earlier version of this
+ * comment claimed a "noindex, follow" rule that was never implemented anywhere
+ * in the codebase. Every day page that renders is indexable.
  */
 
 /** How many of the largest single-day moves to treat as notable. */

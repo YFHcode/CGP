@@ -271,8 +271,20 @@ export async function MinorMetalPage({ metal }: { metal: MinorMetal }) {
                 </div>
             </section>
 
+            {/*
+                The sibling metal comes first: platinum and palladium are the
+                two pages a visitor on either one is most likely to want next,
+                and until now neither linked to the other at all.
+            */}
             <RelatedLinks
-                links={relatedLinks('goldToday', 'silverToday', 'ratio', 'calculator', 'history')}
+                links={relatedLinks(
+                    metal.symbol === 'XPT' ? 'palladium' : 'platinum',
+                    'goldToday',
+                    'silverToday',
+                    'ratio',
+                    'api',
+                    'calculator'
+                )}
             />
         </>
     );

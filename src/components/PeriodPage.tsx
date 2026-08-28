@@ -607,7 +607,7 @@ export function PeriodPage({
                     'history',
                     metal === 'XAU' ? 'goldChart' : 'silverChart',
                     metal === 'XAU' ? 'goldInsights' : 'silverInsights',
-                    'news'
+                    metal === 'XAU' ? 'goldForecast' : 'silverForecast'
                 )}
             />
         </>

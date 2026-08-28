@@ -174,7 +174,7 @@ export default async function GoldSilverRatioPage() {
             </section>
 
             <RelatedLinks
-                links={relatedLinks('goldToday', 'silverToday', 'goldArchive', 'silverArchive', 'calculator', 'history')}
+                links={relatedLinks('goldToday', 'silverToday', 'goldInsights', 'silverInsights', 'platinum', 'palladium')}
             />
         </>
     );

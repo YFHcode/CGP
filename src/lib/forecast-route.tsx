@@ -291,7 +291,8 @@ export async function ForecastPage({ metal }: { metal: MetalSymbol }) {
                     metal === 'XAU' ? 'goldChart' : 'silverChart',
                     metal === 'XAU' ? 'goldInsights' : 'silverInsights',
                     metal === 'XAU' ? 'goldToday' : 'silverToday',
-                    'history',
+                    metal === 'XAU' ? 'silverForecast' : 'goldForecast',
+                    'api',
                     'ratio'
                 )}
             />

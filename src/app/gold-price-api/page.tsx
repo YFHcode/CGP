@@ -352,11 +352,11 @@ print(r.json()["prices"]["gold"]["gram"])`}</code>
             <RelatedLinks
                 links={relatedLinks(
                     'goldChart',
-                    'silverChart',
-                    'history',
-                    'silverHistory',
                     'goldInsights',
-                    'goldToday'
+                    'goldForecast',
+                    'silverForecast',
+                    'history',
+                    'silverHistory'
                 )}
             />
         </>

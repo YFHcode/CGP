@@ -229,7 +229,7 @@ export default async function SilverPricePerUnitPage({
                 links={relatedLinks(
                     'silverCalculator',
                     'silverToday',
-                    'silverArchive',
+                    'meltValue',
                     'silverChart',
                     'silverInsights',
                     'ratio'

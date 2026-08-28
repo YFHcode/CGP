@@ -108,7 +108,7 @@ export default async function GoldPriceTodayPage() {
       <NewsSection />
 
       <RelatedLinks
-        links={relatedLinks('goldChart', 'calculator', 'history', 'silverToday', 'goldInsights', 'news')}
+        links={relatedLinks('goldChart', 'calculator', 'goldForecast', 'perGram', 'goldUk', 'goldInsights')}
       />
     </>
   );

@@ -87,7 +87,7 @@ export default async function SilverPriceTodayPage() {
       <NewsSection />
 
       <RelatedLinks
-        links={relatedLinks('silverChart', 'goldToday', 'calculator', 'history', 'silverInsights', 'news')}
+        links={relatedLinks('silverChart', 'silverCalculator', 'silverForecast', 'silverPerGram', 'silverInsights', 'ratio')}
       />
     </>
   );

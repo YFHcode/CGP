@@ -278,10 +278,10 @@ export default async function UkGoldPricePage() {
                 links={relatedLinks(
                     'calculator',
                     'goldInGbp',
-                    'goldToday',
-                    'goldChart',
-                    'goldArchive',
-                    'goldInsights'
+                    'scrapCalculator',
+                    'meltValue',
+                    'perGram',
+                    'goldToday'
                 )}
             />
         </>

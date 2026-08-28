@@ -246,7 +246,7 @@ export default async function GoldPriceInCurrencyPage({
             </section>
 
             <RelatedLinks
-                links={relatedLinks('goldToday', 'calculator', 'goldArchive', 'silverToday', 'history', 'goldChart')}
+                links={relatedLinks('goldToday', 'calculator', 'perGram', 'goldPerTola', 'goldUk', 'goldChart')}
             />
         </>
     );

@@ -137,7 +137,7 @@ export default async function GoldCalculatorPage() {
       </section>
 
       <RelatedLinks
-        links={relatedLinks('goldToday', 'history', 'goldChart', 'silverToday', 'blog', 'home')}
+        links={relatedLinks('goldToday', 'scrapCalculator', 'meltValue', 'perGram', 'goldUk', 'goldChart')}
       />
     </>
   );

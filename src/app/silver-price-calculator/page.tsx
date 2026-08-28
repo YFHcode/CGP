@@ -162,7 +162,7 @@ export default async function SilverCalculatorPage() {
             </section>
 
             <RelatedLinks
-                links={relatedLinks('calculator', 'silverToday', 'silverArchive', 'goldToday', 'history', 'silverChart')}
+                links={relatedLinks('silverToday', 'meltValue', 'silverPerGram', 'calculator', 'silverChart', 'ratio')}
             />
         </>
     );

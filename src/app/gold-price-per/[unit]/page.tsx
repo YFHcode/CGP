@@ -194,7 +194,7 @@ export default async function GoldPricePerUnitPage({
             </section>
 
             <RelatedLinks
-                links={relatedLinks('calculator', 'goldToday', 'goldArchive', 'silverToday', 'history', 'goldChart')}
+                links={relatedLinks('calculator', 'goldToday', 'scrapCalculator', 'goldUk', 'goldInInr', 'goldChart')}
             />
         </>
     );
