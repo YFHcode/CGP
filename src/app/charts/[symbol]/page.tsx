@@ -45,6 +45,18 @@ function isChartSlug(value: string): value is ChartSlug {
     return value in CHARTS;
 }
 
+/**
+ * Serve only the slugs generateStaticParams returns; anything else 404s at the
+ * routing layer.
+ *
+ * Without this, an unknown slug renders on demand and notFound() returns the
+ * not-found *body* with a 200 status — a soft 404. Google reports those in
+ * Search Console and spends crawl budget on them, and bot probes for URLs like
+ * /charts/wordpress generate them constantly. The valid set here is closed and
+ * fully known (the metals we chart), so nothing legitimate is lost.
+ */
+export const dynamicParams = false;
+
 /** Prerender both charts instead of rendering them on demand. */
 export function generateStaticParams() {
     return Object.keys(CHARTS).map((symbol) => ({ symbol }));

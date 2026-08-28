@@ -8,15 +8,31 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
+import { regionalEnglishAlternates } from '@/lib/locale-pages';
+import type { Metadata } from 'next';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 
-export const metadata = pageMetadata({
+const baseMetadata = pageMetadata({
   title: 'Gold Price Today',
   description:
     "Today's gold price per troy ounce, gram and kilogram in USD, EUR, GBP and more. Day range, change versus previous close and historical gold charts.",
   path: '/gold-price-today',
   keywords: ['gold price today', 'gold rate today', 'live gold price', 'current gold price', 'XAU USD'],
 });
+
+/**
+ * Declares /uk as this page's en-GB counterpart.
+ *
+ * Both answer "gold price today"; this one in dollars for a general audience,
+ * /uk in sterling with hallmark purities for British searchers. Without the
+ * pair being declared, Google sees two pages competing for one intent rather
+ * than one cluster to route by region. Neither page carried any hreflang
+ * before.
+ */
+export const metadata: Metadata = {
+  ...baseMetadata,
+  alternates: { ...baseMetadata.alternates, languages: regionalEnglishAlternates() },
+};
 
 export default async function GoldPriceTodayPage() {
   const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);

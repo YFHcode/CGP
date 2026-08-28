@@ -33,11 +33,10 @@ import { periodFaqSchema } from '@/lib/period-faq';
 export const revalidate = 10800;
 
 export const metadata = pageMetadata({
-    title: 'Coin Melt Value Calculator — Junk Silver, Bullion and Sovereigns',
+    title: 'Coin Melt Value Calculator — Junk Silver & Bullion',
     description:
-        'Live melt values for US silver coins, junk silver bags, and gold and silver bullion ' +
-        'coins. Count a mixed jar of dimes, quarters and half dollars, or look up any single ' +
-        'coin’s exact silver or gold content.',
+        'Live melt values for US silver coins, junk silver bags and bullion. Count a mixed ' +
+        'jar of dimes, quarters and halves, or look up one coin’s exact metal content.',
     path: '/melt-value',
     keywords: [
         'junk silver calculator',

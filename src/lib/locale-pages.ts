@@ -183,3 +183,24 @@ export function localeAlternates(canonicalEnglishPath: string): Record<string, s
         ...Object.fromEntries(cluster.map((page) => [page.lang, `${SITE_URL}/${page.locale}`])),
     };
 }
+
+/**
+ * Regional English cluster: /gold-price-today and /uk.
+ *
+ * Separate from localeAlternates because these are not translations. /uk is
+ * English-language content aimed at British searchers — sterling pricing,
+ * hallmark purities, VAT — while /gold-price-today serves everyone else. They
+ * answer the same query ("gold price today") for different regions, which is
+ * exactly the case hreflang exists for, and without it the two compete for one
+ * intent instead of Google routing each audience to the right one.
+ *
+ * Neither page declared any alternate before this, so the pair was invisible
+ * to Google as a cluster.
+ */
+export function regionalEnglishAlternates(): Record<string, string> {
+    return {
+        'x-default': `${SITE_URL}/gold-price-today`,
+        en: `${SITE_URL}/gold-price-today`,
+        'en-GB': `${SITE_URL}/uk`,
+    };
+}

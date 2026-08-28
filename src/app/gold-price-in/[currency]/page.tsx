@@ -14,6 +14,18 @@ import { periodFaqSchema } from '@/lib/period-faq';
 
 export const revalidate = 10800;
 
+/**
+ * Serve only the slugs generateStaticParams returns; anything else 404s at the
+ * routing layer.
+ *
+ * Without this, an unknown slug renders on demand and notFound() returns the
+ * not-found *body* with a 200 status — a soft 404, which Google reports in
+ * Search Console and spends crawl budget on. The valid set here is closed and
+ * fully known (the currencies we hold rates for), so nothing legitimate is
+ * lost.
+ */
+export const dynamicParams = false;
+
 export function generateStaticParams() {
     return CURRENCY_PAGES.map((page) => ({ currency: page.slug }));
 }

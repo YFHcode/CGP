@@ -29,11 +29,10 @@ import { periodFaqSchema } from '@/lib/period-faq';
 export const revalidate = 10800;
 
 export const metadata = pageMetadata({
-    title: 'Scrap Gold Calculator — What Buyers Actually Pay',
+    title: 'Scrap Gold Calculator — What Buyers Pay',
     description:
-        'Work out what your scrap gold is worth and what a refiner, jeweller, mail-in buyer or ' +
-        'pawn shop is likely to offer. Melt value plus realistic payout ranges by karat, from ' +
-        '9K to 24K.',
+        'What your scrap gold is worth, and what a refiner, jeweller, mail-in buyer or pawn ' +
+        'shop is likely to offer. Melt value plus payout ranges from 9K to 24K.',
     path: '/gold-scrap-calculator',
     keywords: [
         'scrap gold calculator',

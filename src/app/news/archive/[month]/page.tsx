@@ -10,6 +10,23 @@ import { parsePeriod } from '@/lib/history-periods';
 
 export const revalidate = 86400;
 
+/**
+ * Serve only the months generateStaticParams returns; anything else 404s at the
+ * routing layer.
+ *
+ * Without this, an unknown month renders on demand and the notFound() below
+ * returns the not-found *body* with a 200 status — a soft 404, which Google
+ * reports in Search Console and spends crawl budget on.
+ *
+ * Unlike the other routes that do this, the valid set here grows over time. It
+ * is fixed at build time, so a newly-archived month is not served until the
+ * next deploy — which the twice-daily data refresh triggers, since it commits
+ * the archive it just updated. The /news/archive index is built from the same
+ * data in the same pass, so the index and the month pages never disagree about
+ * which months exist.
+ */
+export const dynamicParams = false;
+
 export async function generateStaticParams() {
     const { items } = await getNewsArchive();
     return [...groupArchiveByMonth(items).keys()].map((month) => ({ month }));

@@ -29,11 +29,10 @@ import { periodFaqSchema } from '@/lib/period-faq';
 export const revalidate = 10800;
 
 export const metadata = pageMetadata({
-    title: 'Free Gold & Silver Price API — JSON, No API Key',
+    title: 'Free Gold & Silver Price API — JSON, No Key',
     description:
-        'A free JSON API for live gold and silver prices plus a historical close series going ' +
-        'back to 2000. No API key, no rate limit, CORS enabled. Prices per troy ounce, gram, ' +
-        'kilogram, tola and pavan.',
+        'Free JSON API for live gold and silver prices plus daily closes since 2000. No API ' +
+        'key, no rate limit, CORS enabled. Ounce, gram, kilogram, tola, pavan.',
     path: '/gold-price-api',
     keywords: [
         'free gold price api',

@@ -42,8 +42,8 @@ export function insightsMetadata(metal: MetalSymbol) {
     const path = `${route.base}-insights`;
 
     return pageMetadata({
-        title: `${route.name} Price Insights — Trends, Volatility & Records`,
-        description: `${route.name} analytics computed from our own price history: 50/200-day moving averages, rolling volatility, drawdowns, annual returns by year, monthly seasonality and every notable record on record.`,
+        title: `${route.name} Price Insights — Trends & Volatility`,
+        description: `${route.name} moving averages, rolling volatility, drawdowns, annual returns and monthly seasonality, computed from our own daily price record.`,
         path,
         keywords: [
             `${name} moving average`,
