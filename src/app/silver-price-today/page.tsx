@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { Hero } from '@/components/Hero';
 import { LazyPriceChart } from '@/components/LazyPriceChart';
+import { MetalDataPanel } from '@/components/MetalDataPanel';
 import { NewsSection } from '@/components/NewsSection';
 import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -43,7 +44,14 @@ export default async function SilverPriceTodayPage() {
         title="Silver price history"
       />
 
-      <section className="bg-black py-12">
+      <MetalDataPanel
+        series={history.silver}
+        symbol="XAG"
+        metalName="Silver"
+        routeBase="/silver-price"
+      />
+
+      <section className="bg-zinc-900/30 py-12">
         <div className="container mx-auto px-4">
           <h2 className="mb-6 text-2xl font-bold text-white">Understanding the silver price</h2>
           <div className="grid gap-8 text-zinc-300 md:grid-cols-2">
