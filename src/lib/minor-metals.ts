@@ -22,6 +22,15 @@ export interface MinorMetal {
     lower: string;
     /** Which chart palette entry to use. */
     chartMetal: 'platinum' | 'palladium';
+    /**
+     * The CME division these futures actually trade on.
+     *
+     * history.json carries one source string for the whole file, written by
+     * the gold and silver fetch, so it says COMEX. Gold, silver and copper are
+     * COMEX contracts; platinum and palladium are NYMEX. Reusing the label
+     * unchanged would put the wrong exchange under the chart.
+     */
+    futuresExchange: 'NYMEX';
     title: string;
     description: string;
     keywords: string[];
@@ -41,6 +50,7 @@ export const MINOR_METALS: Record<MinorMetalSymbol, MinorMetal> = {
         name: 'Platinum',
         lower: 'platinum',
         chartMetal: 'platinum',
+        futuresExchange: 'NYMEX',
         title: 'Platinum Price Today — Live Spot Price per Ounce and Gram',
         description:
             'Live platinum spot price per troy ounce, gram and kilogram, with historical charts, ' +
@@ -112,6 +122,7 @@ export const MINOR_METALS: Record<MinorMetalSymbol, MinorMetal> = {
         name: 'Palladium',
         lower: 'palladium',
         chartMetal: 'palladium',
+        futuresExchange: 'NYMEX',
         title: 'Palladium Price Today — Live Spot Price per Ounce and Gram',
         description:
             'Live palladium spot price per troy ounce, gram and kilogram, with historical charts ' +
