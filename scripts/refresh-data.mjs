@@ -315,6 +315,78 @@ export function parseYahooChart(payload, maxPoints = MAX_PARSE_POINTS) {
  * source that only returns a short window still extends the long-term history
  * we have already accumulated instead of truncating it.
  */
+/**
+ * Removes closes dated on a Saturday or Sunday.
+ *
+ * A futures contract cannot print a close when the exchange is shut, so any
+ * such point is an artifact rather than a session. They arrived from the
+ * legacy monthly series, which sampled the first calendar day of each month
+ * regardless of whether it was a trading day: 44 of gold's 45 weekend-dated
+ * points fell on the 1st.
+ *
+ * They survived the daily backfill because mergeSeries is keyed by date, and a
+ * Saturday has no real session to overwrite it. Left in place they are not a
+ * cosmetic problem — each sits between two genuine closes at a different
+ * price, manufacturing a spike and an equal reversal the next day. Ten of
+ * gold's sixteen implausible daily moves involved one, and they inflated the
+ * 60-day volatility estimate to 45.8% annualised against a typical 12-18%,
+ * which more than doubled the width of every forecast interval on the site.
+ */
+export function dropNonTradingDays(points) {
+    if (!Array.isArray(points)) return [];
+    return points.filter((point) => {
+        if (!point || typeof point.date !== 'string') return false;
+        const day = new Date(`${point.date}T00:00:00Z`).getUTCDay();
+        return day !== 0 && day !== 6;
+    });
+}
+
+/**
+ * Removes single points that spike and immediately revert.
+ *
+ * What is left after the weekend prune are legacy monthly samples that landed
+ * on a market holiday — 1 January 2008, US Labor Day 2025 — where the exchange
+ * was shut but the calendar day was a weekday, so no genuine session existed to
+ * overwrite them. Each sits between two real closes at a price neither
+ * neighbour supports.
+ *
+ * The signature is what makes this safe: an artifact jumps and comes straight
+ * back, leaving the neighbours close to each other, whereas a genuine crash
+ * moves to a new level and stays. Gold's real 15 April 2013 collapse (-9.8% in
+ * a session) is preserved by exactly that test, because the following day moved
+ * only +1.9% rather than undoing it.
+ *
+ * Deliberately conservative. It requires a large move in AND out, in opposite
+ * directions, AND neighbours that agree with each other — three conditions,
+ * because wrongly deleting a real session is worse than leaving one bad point.
+ */
+const SPIKE_MOVE = 0.05;
+const NEIGHBOUR_AGREEMENT = 0.03;
+
+export function dropSpikes(points) {
+    if (!Array.isArray(points) || points.length < 3) return Array.isArray(points) ? points : [];
+
+    const keep = points.map(() => true);
+    for (let i = 1; i < points.length - 1; i++) {
+        const prev = points[i - 1].close;
+        const here = points[i].close;
+        const next = points[i + 1].close;
+        if (!(prev > 0 && here > 0 && next > 0)) continue;
+
+        const inMove = Math.log(here / prev);
+        const outMove = Math.log(next / here);
+        const acrossMove = Math.abs(Math.log(next / prev));
+
+        const spikes = Math.abs(inMove) > SPIKE_MOVE && Math.abs(outMove) > SPIKE_MOVE;
+        const reverts = Math.sign(inMove) !== Math.sign(outMove);
+        const neighboursAgree = acrossMove < NEIGHBOUR_AGREEMENT;
+
+        if (spikes && reverts && neighboursAgree) keep[i] = false;
+    }
+
+    return points.filter((_, i) => keep[i]);
+}
+
 export function mergeSeries(existing = [], incoming = [], maxPoints = MAX_HISTORY_POINTS) {
     const byDate = new Map();
     for (const point of existing) {
@@ -329,9 +401,13 @@ export function mergeSeries(existing = [], incoming = [], maxPoints = MAX_HISTOR
         }
     }
 
-    const merged = [...byDate.entries()]
-        .map(([date, close]) => ({ date, close }))
-        .sort((a, b) => a.date.localeCompare(b.date));
+    const merged = dropSpikes(
+        dropNonTradingDays(
+            [...byDate.entries()]
+                .map(([date, close]) => ({ date, close }))
+                .sort((a, b) => a.date.localeCompare(b.date))
+        )
+    );
 
     // Number.POSITIVE_INFINITY means "keep everything"; slice(-Infinity) would
     // return an empty array, so guard it explicitly.

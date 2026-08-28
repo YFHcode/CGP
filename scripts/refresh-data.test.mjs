@@ -11,9 +11,28 @@ import {
     mergeNewsArchive,
     parseApiKeys,
     collectExchangeRates,
+    dropNonTradingDays,
+    dropSpikes,
     sparseYears,
     windowsForYears,
 } from './refresh-data.mjs';
+
+/**
+ * `count` consecutive trading days from `startIso`, skipping weekends.
+ *
+ * Fixtures that walk raw calendar days now interact with the weekend prune in
+ * mergeSeries, which makes them test the wrong thing.
+ */
+function weekdays(startIso, count) {
+    const out = [];
+    const cursor = new Date(`${startIso}T00:00:00Z`);
+    while (out.length < count) {
+        const day = cursor.getUTCDay();
+        if (day !== 0 && day !== 6) out.push(cursor.toISOString().slice(0, 10));
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return out;
+}
 
 const SAMPLE_CSV = `Date,Open,High,Low,Close,Volume
 2024-01-02,2062.98,2088.44,2058.13,2058.98,0
@@ -158,13 +177,15 @@ test('mergeSeries unions by date and lets incoming win on conflict', () => {
 });
 
 test('mergeSeries preserves accumulated history when incoming is a short window', () => {
-    const existing = Array.from({ length: 5 }, (_, i) => ({
-        date: `2024-01-0${i + 1}`,
-        close: 100 + i,
-    }));
-    const merged = mergeSeries(existing, [{ date: '2024-01-06', close: 999 }]);
+    // Weekdays only. The fixture previously ran across consecutive calendar
+    // days, which since the weekend prune would have had Saturday dropped —
+    // testing the prune by accident instead of what this is actually about,
+    // which is that a short incoming window must not truncate the archive.
+    const existing = weekdays('2024-01-01', 5).map((date, i) => ({ date, close: 100 + i }));
+    const extra = weekdays('2024-01-01', 6).at(-1);
+    const merged = mergeSeries(existing, [{ date: extra, close: 999 }]);
     assert.equal(merged.length, 6, 'existing points must not be truncated');
-    assert.deepEqual(merged.at(-1), { date: '2024-01-06', close: 999 });
+    assert.deepEqual(merged.at(-1), { date: extra, close: 999 });
 });
 
 test('mergeSeries handles empty/undefined inputs and drops junk points', () => {
@@ -269,12 +290,15 @@ test('mergeNewsArchive tolerates empty and malformed input', () => {
 test('mergeSeries never drops old points by default', () => {
     // The archive publishes a page per day, so silently trimming the oldest
     // entry would 404 a page that had already been indexed.
-    const existing = Array.from({ length: 4000 }, (_, i) => ({
-        date: new Date(Date.UTC(2015, 0, 1 + i)).toISOString().slice(0, 10),
-        close: 1000 + i,
-    }));
+    // Weekdays only, for the same reason as above: this asserts that nothing
+    // is trimmed for age, not that weekends are kept.
+    const existing = weekdays('2015-01-01', 4000).map((date, i) => ({ date, close: 1000 + i }));
 
-    const merged = mergeSeries(existing, [{ date: '2030-01-01', close: 9999 }]);
+    // Derived from the fixture rather than hardcoded: 4,000 weekdays from 2015
+    // run past 2030, so a fixed date landed inside the existing range and added
+    // nothing.
+    const newer = weekdays(existing.at(-1).date, 2).at(-1);
+    const merged = mergeSeries(existing, [{ date: newer, close: 9999 }]);
 
     assert.equal(merged.length, 4001, 'every historical point survives');
     assert.equal(merged[0].date, existing[0].date, 'oldest point is still first');
@@ -476,4 +500,129 @@ test('once backfilled, a dense series asks for nothing', () => {
     const points = [];
     for (let y = 2020; y <= 2023; y++) points.push(...dailyYear(y));
     assert.deepEqual(windowsForYears(sparseYears(points, { endYear: 2023 }), 2), []);
+});
+
+// --- dropNonTradingDays ----------------------------------------------------
+
+test('weekend-dated closes are removed, because an exchange cannot close then', () => {
+    const points = [
+        { date: '2026-08-27', close: 100 }, // Thursday
+        { date: '2026-08-28', close: 101 }, // Friday
+        { date: '2026-08-29', close: 999 }, // Saturday
+        { date: '2026-08-30', close: 999 }, // Sunday
+        { date: '2026-08-31', close: 102 }, // Monday
+    ];
+    assert.deepEqual(dropNonTradingDays(points).map((p) => p.date), [
+        '2026-08-27',
+        '2026-08-28',
+        '2026-08-31',
+    ]);
+});
+
+test('mergeSeries drops weekend artifacts rather than carrying them forward', () => {
+    // The real defect: the legacy monthly series sampled the 1st of each month
+    // regardless of whether it traded, and those points survived the daily
+    // backfill because a Saturday has no genuine session to overwrite it. Each
+    // then sat between two real closes at a different price, manufacturing a
+    // spike and an equal reversal.
+    const existing = [{ date: '2006-04-01', close: 651.8 }]; // a Saturday
+    const incoming = [
+        { date: '2006-03-31', close: 581.8 },
+        { date: '2006-04-03', close: 589.4 },
+    ];
+    const merged = mergeSeries(existing, incoming);
+    assert.deepEqual(merged.map((p) => p.date), ['2006-03-31', '2006-04-03']);
+
+    // And the spurious move is gone with it.
+    const move = Math.abs(Math.log(merged[1].close / merged[0].close));
+    assert.ok(move < 0.05, `expected a small move after pruning, got ${(move * 100).toFixed(1)}%`);
+});
+
+test('genuine first-of-month trading days are kept', () => {
+    // The rule must key on the weekday, not on the day-of-month: plenty of
+    // real sessions fall on the 1st.
+    const points = [
+        { date: '2026-09-01', close: 100 }, // Tuesday
+        { date: '2026-06-01', close: 101 }, // Monday
+    ];
+    assert.equal(dropNonTradingDays(points).length, 2);
+});
+
+test('dropNonTradingDays tolerates malformed input', () => {
+    assert.deepEqual(dropNonTradingDays(null), []);
+    assert.deepEqual(dropNonTradingDays(undefined), []);
+    assert.deepEqual(dropNonTradingDays([null, { close: 1 }, { date: 42 }]), []);
+});
+
+// --- dropSpikes ------------------------------------------------------------
+
+test('a single point that spikes and reverts is removed', () => {
+    // The remaining artifact class after the weekend prune: a legacy monthly
+    // sample landing on a market holiday, where the calendar day is a weekday
+    // but no session traded, so nothing genuine overwrote it.
+    const points = [
+        { date: '2007-12-31', close: 834.9 },
+        { date: '2008-01-01', close: 922.7 }, // New Year's Day — exchange shut
+        { date: '2008-01-02', close: 854.4 },
+    ];
+    assert.deepEqual(dropSpikes(points).map((p) => p.date), ['2007-12-31', '2008-01-02']);
+});
+
+test('a genuine crash is preserved, because it does not revert', () => {
+    // Gold really did fall about 9.8% on 15 April 2013. The next session moved
+    // only +1.9%, so the price stayed at its new level — which is exactly what
+    // separates a real move from a bad point, and why the filter needs the
+    // revert condition rather than just a size threshold.
+    const points = [
+        { date: '2013-04-12', close: 1501.0 },
+        { date: '2013-04-15', close: 1360.6 },
+        { date: '2013-04-16', close: 1387.4 },
+    ];
+    assert.deepEqual(dropSpikes(points).length, 3, 'a real crash must not be deleted');
+});
+
+test('all three conditions are required, not any one of them', () => {
+    // Large in-move but small out-move: kept.
+    assert.equal(
+        dropSpikes([
+            { date: '2024-01-01', close: 100 },
+            { date: '2024-01-02', close: 112 },
+            { date: '2024-01-03', close: 113 },
+        ]).length,
+        3
+    );
+    // Large moves in both directions but the same sign — a real run, kept.
+    assert.equal(
+        dropSpikes([
+            { date: '2024-01-01', close: 100 },
+            { date: '2024-01-02', close: 110 },
+            { date: '2024-01-03', close: 121 },
+        ]).length,
+        3
+    );
+    // Spikes and reverts, but the neighbours disagree by more than the
+    // threshold, so the move was partly real: kept.
+    assert.equal(
+        dropSpikes([
+            { date: '2024-01-01', close: 100 },
+            { date: '2024-01-02', close: 112 },
+            { date: '2024-01-03', close: 106 },
+        ]).length,
+        3
+    );
+});
+
+test('dropSpikes leaves short and malformed series alone', () => {
+    assert.deepEqual(dropSpikes([]), []);
+    assert.deepEqual(dropSpikes(null), []);
+    assert.equal(dropSpikes([{ date: '2024-01-01', close: 1 }]).length, 1);
+    assert.equal(
+        dropSpikes([
+            { date: '2024-01-01', close: 100 },
+            { date: '2024-01-02', close: 0 },
+            { date: '2024-01-03', close: 100 },
+        ]).length,
+        3,
+        'a non-positive close cannot be judged and is left for the caller to drop'
+    );
 });
