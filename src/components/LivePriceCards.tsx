@@ -5,6 +5,7 @@ import { useLivePrices } from '@/hooks/useLivePrices';
 import { mergeLiveQuote } from '@/lib/live-quote';
 import type { GoldPriceResponse, MetalSymbol } from '@/types';
 import { PriceCard } from './PriceCard';
+import { LastUpdated } from './LastUpdated';
 
 /**
  * Client leaf that keeps the price cards ticking.
@@ -24,10 +25,13 @@ export function LivePriceCards({
     goldData,
     silverData,
     metal,
+    updatedAt,
 }: {
     goldData: GoldPriceResponse | null;
     silverData: GoldPriceResponse | null;
     metal?: MetalSymbol;
+    /** Snapshot refresh time, shown when no live quote has landed. */
+    updatedAt?: string | null;
 }) {
     const live = useLivePrices();
 
@@ -40,7 +44,14 @@ export function LivePriceCards({
         quotedAt: null as string | null,
     };
 
+    // Whichever metal this page actually shows drives the timestamp; on the
+    // two-card homepage either will do, since both come from the same poll.
+    const liveAt = status.isLive
+        ? (metal === 'XAG' ? live.silver?.updatedAt : live.gold?.updatedAt) ?? null
+        : null;
+
     return (
+        <>
         <div
             className={cn(
                 'mx-auto grid grid-cols-1 gap-6',
@@ -66,5 +77,13 @@ export function LivePriceCards({
                 />
             )}
         </div>
+
+        {/* Rendered here rather than in Hero so it can see the live state.
+            In Hero it only ever had the snapshot time, and kept reporting a
+            twice-daily timestamp under a price updating every 15 seconds. */}
+        <div className="mt-6">
+            <LastUpdated updatedAt={updatedAt ?? null} liveAt={liveAt} />
+        </div>
+        </>
     );
 }
