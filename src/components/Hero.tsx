@@ -1,5 +1,4 @@
 import { LivePriceCards } from './LivePriceCards';
-import { LastUpdated } from './LastUpdated';
 import type { GoldPriceResponse, MetalSymbol } from '@/types';
 
 interface HeroProps {
@@ -52,11 +51,14 @@ export function Hero({
                     </div>
                 )}
 
-                <LivePriceCards goldData={goldData} silverData={silverData} metal={metal} />
-
-                <div className="mt-6">
-                    <LastUpdated updatedAt={updatedAt ?? null} />
-                </div>
+                {/* LivePriceCards renders the timestamp: it is the only thing
+                    here that knows whether a live quote has landed. */}
+                <LivePriceCards
+                    goldData={goldData}
+                    silverData={silverData}
+                    metal={metal}
+                    updatedAt={updatedAt ?? null}
+                />
             </div>
         </section>
     );
