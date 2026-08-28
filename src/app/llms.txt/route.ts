@@ -70,6 +70,8 @@ Silver fineness: .999 fine, .925 sterling, .900 coin silver.
 - ${SITE_URL}/gold-price-calculator — value jewellery or bullion by weight and purity
 - ${SITE_URL}/gold-scrap-calculator — scrap gold value and what buyers actually pay
 - ${SITE_URL}/melt-value — coin melt values and junk silver calculator
+- ${SITE_URL}/gold-price-forecast — 7-day projection with measured accuracy vs a no-change benchmark
+- ${SITE_URL}/silver-price-forecast — the same for silver
 - ${SITE_URL}/platinum-price — platinum spot price, fineness values and demand drivers
 - ${SITE_URL}/palladium-price — palladium spot price and autocatalyst demand
 

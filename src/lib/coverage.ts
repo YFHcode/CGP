@@ -33,41 +33,79 @@ export interface CoverageFacts {
 }
 
 /**
- * Largest gap in days still consistent with a daily series.
+ * Minimum observations in a year for that year to count as daily.
  *
- * Weekends give 3, a long weekend 4, and a public holiday adjoining one can
- * reach 5. Monthly sampling produces 28 or more, so anything in between is
- * unambiguous and the threshold is not delicately placed.
+ * A trading year holds roughly 250 sessions and a monthly sample 12, so this
+ * sits far from both and is not a delicate judgement.
  */
-const MAX_DAILY_GAP_DAYS = 7;
+const MIN_DAILY_PER_YEAR = 100;
 
 function daysBetween(a: string, b: string): number {
     return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 }
 
 /**
- * Finds the trailing run of daily observations by walking backwards from the
- * most recent point until a gap too large to be a weekend or holiday appears.
+ * First year from which the record stays daily through to the end.
  *
- * Backwards rather than forwards because the daily portion is always the
- * recent end — that is how the pipeline works — and a backwards walk needs no
- * lookahead heuristics to avoid being fooled by an isolated pair of adjacent
- * monthly samples.
+ * Density per year, not a backwards walk over gaps. The original walked back
+ * from the newest point while every gap stayed under a week, which was correct
+ * while the archive really was monthly-then-daily. Once it was backfilled to
+ * true daily history that broke: seven isolated gaps of 8 to 27 days —
+ * exchange holidays and small holes upstream — halted the walk, so a
+ * 6,450-point daily series was still being described as "monthly closes from
+ * 2000, then daily from 2024". Counting per year tolerates those holes,
+ * because one missing fortnight does not take a year under 100 sessions.
  */
+function firstDailyIndexByDensity(series: SeriesPoint[]): number {
+    const byYear = new Map<string, { count: number; first: string; last: string }>();
+    for (const point of series) {
+        const date = String(point?.date ?? '');
+        const year = date.slice(0, 4);
+        if (year.length !== 4) continue;
+        const entry = byYear.get(year);
+        if (entry) {
+            entry.count++;
+            if (date < entry.first) entry.first = date;
+            if (date > entry.last) entry.last = date;
+        } else {
+            byYear.set(year, { count: 1, first: date, last: date });
+        }
+    }
+    if (byYear.size === 0) return series.length;
+
+    /**
+     * Density is judged against the span a year actually covers, not the whole
+     * calendar year. The first and last years of any record are partial by
+     * definition — this series starts on 30 August 2000 and so holds 84
+     * sessions that year — and a flat annual threshold would reject them as
+     * "not daily" when 84 sessions across four months is exactly daily.
+     */
+    const isDense = (entry: { count: number; first: string; last: string }) => {
+        const span = Math.max(1, daysBetween(entry.first, entry.last) + 1);
+        const expected = (MIN_DAILY_PER_YEAR * span) / 365;
+        return entry.count >= Math.max(10, expected);
+    };
+
+    const years = [...byYear.keys()].sort();
+    let firstYear: string | null = null;
+    for (let i = years.length - 1; i >= 0; i--) {
+        const entry = byYear.get(years[i]);
+        if (!entry || !isDense(entry)) break;
+        firstYear = years[i];
+    }
+    if (firstYear === null) return series.length;
+
+    const index = series.findIndex((p) => p.date.slice(0, 4) === firstYear);
+    return index >= 0 ? index : series.length;
+}
+
 export function describeCoverage(series: SeriesPoint[]): CoverageFacts | null {
     if (!Array.isArray(series) || series.length === 0) return null;
 
     const start = series[0].date;
     const end = series[series.length - 1].date;
 
-    let firstDailyIndex = series.length - 1;
-    while (
-        firstDailyIndex > 0 &&
-        daysBetween(series[firstDailyIndex - 1].date, series[firstDailyIndex].date) <=
-            MAX_DAILY_GAP_DAYS
-    ) {
-        firstDailyIndex -= 1;
-    }
+    const firstDailyIndex = firstDailyIndexByDensity(series);
 
     // A lone trailing point is not a cadence. Require at least a couple of
     // weeks of consecutive observations before calling anything "daily".

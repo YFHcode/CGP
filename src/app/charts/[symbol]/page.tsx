@@ -4,6 +4,12 @@ import { ArrowRight } from 'lucide-react';
 
 import { LazyPriceChart } from '@/components/LazyPriceChart';
 import { LazyTrendChartWrapper, LazyVolatilityChartWrapper } from '@/components/LazyInsightsCharts';
+import {
+    LazyRsiChart,
+    LazyMacdChart,
+    LazyBollingerChart,
+    LazyRatioChart,
+} from '@/components/LazyIndicatorCharts';
 import { DataExport } from '@/components/DataExport';
 import { AnalysisSection } from '@/components/AnalysisSection';
 import { LastUpdated } from '@/components/LastUpdated';
@@ -14,6 +20,7 @@ import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { formatMetalPrice, formatPercent } from '@/lib/currencies';
 import { movingAverages, computeDrawdowns, rollingVolatility } from '@/lib/insights-metrics';
+import { rsi, macd, bollinger, goldSilverRatio, latest } from '@/lib/indicators';
 
 const CHARTS = {
     gold: {
@@ -84,6 +91,17 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
     const ma = hasEnoughHistory ? movingAverages(series) : [];
     const drawdowns = hasEnoughHistory ? computeDrawdowns(series) : null;
     const volatility = hasEnoughHistory ? rollingVolatility(series) : [];
+
+    // Indicator panels. Computed on the server from the same series the chart
+    // draws, so the numbers under the chart and in the panels cannot disagree.
+    const rsiSeries = hasEnoughHistory ? rsi(series) : [];
+    const macdSeries = hasEnoughHistory ? macd(series) : [];
+    const bollingerSeries = hasEnoughHistory ? bollinger(series) : [];
+    const ratioSeries =
+        hasEnoughHistory && history.gold.length > 0 && history.silver.length > 0
+            ? goldSilverRatio(history.gold, history.silver)
+            : [];
+    const currentRsi = latest(rsiSeries);
     const metalColor = slug === 'gold' ? '#d6a93e' : '#94a3b8';
 
     return (
@@ -171,6 +189,44 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                             <LazyTrendChartWrapper points={ma} metalColor={metalColor} metalName={chart.name} />
                             <LazyVolatilityChartWrapper points={volatility} />
                         </div>
+
+                        {/*
+                            Technical panels. Everything here is computable from
+                            daily closes alone — the stored series carries no
+                            intraday range, which rules out ATR, stochastics and
+                            anything candle-based, so those are deliberately
+                            absent rather than approximated from closes.
+                        */}
+                        <div className="mt-10">
+                            <h2 className="text-2xl font-bold text-white">
+                                Technical analysis
+                            </h2>
+                            <p className="mt-2 max-w-3xl text-sm text-zinc-400">
+                                Standard indicators computed from the full daily record.
+                                {currentRsi !== null && (
+                                    <>
+                                        {' '}
+                                        {chart.name}&apos;s 14-day RSI is currently{' '}
+                                        <strong className="text-zinc-200">
+                                            {currentRsi.toFixed(0)}
+                                        </strong>
+                                        {currentRsi >= 70
+                                            ? ' — in the range usually described as overbought.'
+                                            : currentRsi <= 30
+                                              ? ' — in the range usually described as oversold.'
+                                              : ' — neither overbought nor oversold.'}
+                                    </>
+                                )}{' '}
+                                None of this is a trading signal or financial advice.
+                            </p>
+                        </div>
+
+                        {rsiSeries.length > 0 && <LazyRsiChart points={rsiSeries} />}
+                        {macdSeries.length > 0 && <LazyMacdChart points={macdSeries} />}
+                        {bollingerSeries.length > 0 && (
+                            <LazyBollingerChart points={bollingerSeries} closes={series} />
+                        )}
+                        {ratioSeries.length > 0 && <LazyRatioChart points={ratioSeries} />}
 
                         <div className="mt-6 flex flex-wrap items-center gap-4">
                             <Link
