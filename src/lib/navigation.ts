@@ -104,6 +104,13 @@ export const NAV_GROUPS: NavGroup[] = [
                 ],
             },
             {
+                title: 'Forecasts',
+                links: [
+                    { href: '/gold-price-forecast', label: 'Gold price forecast' },
+                    { href: '/silver-price-forecast', label: 'Silver price forecast' },
+                ],
+            },
+            {
                 title: 'Other metals',
                 links: [
                     { href: '/platinum-price', label: 'Platinum price' },

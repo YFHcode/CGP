@@ -7,27 +7,51 @@ import { readFileSync } from 'node:fs';
  * without a build step, matching the rest of scripts/*.test.mjs.
  */
 
-const MAX_DAILY_GAP_DAYS = 7;
+const MIN_DAILY_PER_YEAR = 100;
 
 function daysBetween(a, b) {
     return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 }
 
+function firstDailyIndexByDensity(series) {
+    const byYear = new Map();
+    for (const point of series) {
+        const date = String(point?.date ?? '');
+        const year = date.slice(0, 4);
+        if (year.length !== 4) continue;
+        const entry = byYear.get(year);
+        if (entry) {
+            entry.count++;
+            if (date < entry.first) entry.first = date;
+            if (date > entry.last) entry.last = date;
+        } else {
+            byYear.set(year, { count: 1, first: date, last: date });
+        }
+    }
+    if (byYear.size === 0) return series.length;
+
+    const isDense = (e) => {
+        const span = Math.max(1, daysBetween(e.first, e.last) + 1);
+        return e.count >= Math.max(10, (MIN_DAILY_PER_YEAR * span) / 365);
+    };
+
+    const years = [...byYear.keys()].sort();
+    let firstYear = null;
+    for (let i = years.length - 1; i >= 0; i--) {
+        const entry = byYear.get(years[i]);
+        if (!entry || !isDense(entry)) break;
+        firstYear = years[i];
+    }
+    if (firstYear === null) return series.length;
+    const index = series.findIndex((p) => p.date.slice(0, 4) === firstYear);
+    return index >= 0 ? index : series.length;
+}
+
 function describeCoverage(series) {
     if (!Array.isArray(series) || series.length === 0) return null;
-
     const start = series[0].date;
     const end = series[series.length - 1].date;
-
-    let firstDailyIndex = series.length - 1;
-    while (
-        firstDailyIndex > 0 &&
-        daysBetween(series[firstDailyIndex - 1].date, series[firstDailyIndex].date) <=
-            MAX_DAILY_GAP_DAYS
-    ) {
-        firstDailyIndex -= 1;
-    }
-
+    const firstDailyIndex = firstDailyIndexByDensity(series);
     const dailyPoints = series.length - firstDailyIndex;
     const hasDailyRun = dailyPoints >= 10;
     const dailyFrom = hasDailyRun ? series[firstDailyIndex].date : null;
@@ -39,92 +63,24 @@ function describeCoverage(series) {
         sentence = `daily closes from ${start} to ${end}`;
         summary = 'daily closes';
     } else if (dailyFrom) {
-        sentence =
-            `monthly closes from ${start}, then daily closes from ${dailyFrom} ` + `through ${end}`;
+        sentence = `monthly closes from ${start}, then daily closes from ${dailyFrom} ` + `through ${end}`;
         summary = `monthly closes back to ${start.slice(0, 4)}, daily closes since ${dailyFrom.slice(0, 4)}`;
     } else {
         sentence = `monthly closes from ${start} to ${end}`;
         summary = 'monthly closes';
     }
-
-    return {
-        start,
-        end,
-        points: series.length,
-        dailyFrom,
-        dailyPoints: hasDailyRun ? dailyPoints : 0,
-        sentence,
-        summary,
-    };
+    return { start, end, points: series.length, dailyFrom, dailyPoints: hasDailyRun ? dailyPoints : 0, sentence, summary };
 }
 
-function coverageYears(facts) {
-    return Math.floor(daysBetween(facts.start, facts.end) / 365.25);
+function coverageYears(f) {
+    return Math.floor(daysBetween(f.start, f.end) / 365.25);
 }
 
 const history = JSON.parse(readFileSync(new URL('../data/history.json', import.meta.url), 'utf8'));
 
-test('the committed gold series is not daily throughout, which is what the docs used to claim', () => {
-    const facts = describeCoverage(history.series.XAU);
-    assert.ok(facts, 'expected a gold series in the committed snapshot');
 
-    // The external truth being asserted: a genuinely daily series spanning
-    // this many years would hold roughly 250 points per year. If this ever
-    // becomes true, the summary prose should change with it.
-    const years = coverageYears(facts);
-    assert.ok(years >= 20, `expected a multi-decade record, got ${years} years`);
-    assert.ok(
-        facts.points < years * 250,
-        `series holds ${facts.points} points over ${years} years — that is dense enough to be ` +
-            'daily throughout, so describeCoverage and the surrounding prose need revisiting'
-    );
-    assert.equal(facts.summary.startsWith('daily closes'), false);
-});
 
-test('the daily tail is detected and is a minority of the record', () => {
-    const facts = describeCoverage(history.series.XAU);
-    assert.ok(facts.dailyFrom, 'expected a trailing daily run');
-    assert.ok(
-        facts.dailyFrom > facts.start,
-        'daily cadence should begin after the start of the record'
-    );
-    assert.ok(
-        facts.dailyPoints < facts.points,
-        'the daily run should not be the entire series here'
-    );
-    assert.match(facts.sentence, /^monthly closes from .+ then daily closes from .+ through .+$/);
-});
 
-test('gaps inside the detected daily run are all weekend-sized', () => {
-    const series = history.series.XAU;
-    const facts = describeCoverage(series);
-    const tail = series.slice(series.length - facts.dailyPoints);
-    for (let i = 1; i < tail.length; i++) {
-        const gap = daysBetween(tail[i - 1].date, tail[i].date);
-        assert.ok(
-            gap <= MAX_DAILY_GAP_DAYS,
-            `gap of ${gap} days at ${tail[i].date} inside the supposed daily run`
-        );
-    }
-});
-
-test('gaps before the daily run are monthly-sized, so the threshold is not delicately placed', () => {
-    const series = history.series.XAU;
-    const facts = describeCoverage(series);
-    const head = series.slice(0, series.length - facts.dailyPoints + 1);
-    let monthlySized = 0;
-    for (let i = 1; i < head.length; i++) {
-        if (daysBetween(head[i - 1].date, head[i].date) >= 28) monthlySized++;
-    }
-    // Every gap in the head should be a month or more; if any were in the
-    // 8–27 day range the 7-day threshold would be a judgement call rather
-    // than a clean separation.
-    assert.equal(
-        monthlySized,
-        head.length - 1,
-        'found gaps between 8 and 27 days, which straddle the daily/monthly threshold'
-    );
-});
 
 test('a fully daily series is described as such', () => {
     const series = [];
@@ -165,4 +121,72 @@ test('empty and malformed input return null rather than throwing', () => {
     assert.equal(describeCoverage([]), null);
     assert.equal(describeCoverage(null), null);
     assert.equal(describeCoverage(undefined), null);
+});
+
+// --- Against the committed series, after the daily backfill -----------------
+
+test('the committed gold series is now daily across the whole record', () => {
+    // This replaces three tests written when the archive was monthly before
+    // 2024. They asserted the opposite and failed the moment the backfill
+    // landed, which is what they were for — the failure message said the prose
+    // needed revisiting, and it did.
+    const facts = describeCoverage(history.series.XAU);
+    assert.ok(facts, 'expected a gold series in the committed snapshot');
+
+    const years = coverageYears(facts);
+    assert.ok(years >= 20, `expected a multi-decade record, got ${years} years`);
+    assert.ok(
+        facts.points > years * 200,
+        `series holds ${facts.points} points over ${years} years — too sparse to be daily`
+    );
+    assert.equal(facts.dailyFrom, facts.start, 'daily cadence should start at the first observation');
+    assert.equal(facts.summary, 'daily closes');
+    assert.match(facts.sentence, /^daily closes from \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}$/);
+});
+
+test('isolated multi-week gaps do not truncate the detected daily run', () => {
+    // The regression that motivated the density rule. The real series contains
+    // a handful of 8-to-27 day holes (exchange holidays, upstream gaps); a
+    // backwards walk that stopped at the first one reported a 6,450-point
+    // daily series as "monthly until 2024".
+    const series = [];
+    const d = new Date(Date.UTC(2020, 0, 1));
+    for (let i = 0; i < 500; i++) {
+        // Insert a 20-day hole a third of the way in.
+        if (i === 160) d.setUTCDate(d.getUTCDate() + 20);
+        if (d.getUTCDay() % 6 !== 0) series.push({ date: d.toISOString().slice(0, 10), close: 100 });
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    const facts = describeCoverage(series);
+    assert.equal(facts.summary, 'daily closes', 'one 20-day hole must not demote the series');
+});
+
+test('a genuinely monthly series is still reported as monthly', () => {
+    // The density rule must not simply call everything daily.
+    const series = [];
+    for (let y = 2010; y <= 2020; y++) {
+        for (let m = 1; m <= 12; m++) {
+            series.push({ date: `${y}-${String(m).padStart(2, '0')}-01`, close: 100 });
+        }
+    }
+    const facts = describeCoverage(series);
+    assert.equal(facts.summary, 'monthly closes');
+    assert.equal(facts.dailyFrom, null);
+});
+
+test('a monthly record with a daily tail is still described as both', () => {
+    const series = [];
+    for (let y = 2015; y <= 2023; y++) {
+        for (let m = 1; m <= 12; m++) {
+            series.push({ date: `${y}-${String(m).padStart(2, '0')}-01`, close: 100 });
+        }
+    }
+    const d = new Date(Date.UTC(2024, 0, 1));
+    for (let i = 0; i < 400; i++) {
+        if (d.getUTCDay() % 6 !== 0) series.push({ date: d.toISOString().slice(0, 10), close: 100 });
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    const facts = describeCoverage(series);
+    assert.equal(facts.dailyFrom?.slice(0, 4), '2024');
+    assert.match(facts.sentence, /^monthly closes from .+ then daily closes from .+ through .+$/);
 });
