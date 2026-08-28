@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { Hero } from '@/components/Hero';
 import { LazyPriceChart } from '@/components/LazyPriceChart';
+import { MetalDataPanel } from '@/components/MetalDataPanel';
 import { NewsSection } from '@/components/NewsSection';
 import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -60,7 +61,14 @@ export default async function GoldPriceTodayPage() {
         title="Gold price history"
       />
 
-      <section className="bg-black py-12">
+      <MetalDataPanel
+        series={history.gold}
+        symbol="XAU"
+        metalName="Gold"
+        routeBase="/gold-price"
+      />
+
+      <section className="bg-zinc-900/30 py-12">
         <div className="container mx-auto px-4">
           <h2 className="mb-6 text-2xl font-bold text-white">Understanding the gold price</h2>
           <div className="grid gap-8 text-zinc-300 md:grid-cols-2">

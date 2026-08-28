@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { LazyPriceChart } from '@/components/LazyPriceChart';
+import { MetalDataPanel } from '@/components/MetalDataPanel';
 import { JsonLd } from '@/components/JsonLd';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { LastUpdated } from '@/components/LastUpdated';
@@ -152,7 +153,19 @@ export async function MinorMetalPage({ metal }: { metal: MinorMetal }) {
                 />
             )}
 
-            <section className="bg-black py-12">
+            {/*
+                routeBase is null: platinum and palladium have no per-day
+                archive, so the record dates render as text rather than links
+                to routes that do not exist.
+            */}
+            <MetalDataPanel
+                series={series}
+                symbol={metal.symbol}
+                metalName={metal.name}
+                routeBase={null}
+            />
+
+            <section className="bg-zinc-900/30 py-12">
                 <div className="container mx-auto px-4">
                     <h2 className="mb-6 text-2xl font-bold text-white">
                         What moves the {metal.lower} price

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 
 import { LazyPriceChart } from '@/components/LazyPriceChart';
+import { MetalDataPanel } from '@/components/MetalDataPanel';
 import { LazyTrendChartWrapper, LazyVolatilityChartWrapper } from '@/components/LazyInsightsCharts';
 import {
     LazyRsiChart,
@@ -149,6 +150,13 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                 series={series}
                 source={history.source}
                 title={`${chart.name} price history`}
+            />
+
+            <MetalDataPanel
+                series={series}
+                symbol={slug === 'gold' ? 'XAU' : 'XAG'}
+                metalName={chart.name}
+                routeBase={slug === 'gold' ? '/gold-price' : '/silver-price'}
             />
 
             <AnalysisSection gold={gold} silver={silver} />
