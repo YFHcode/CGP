@@ -118,7 +118,36 @@ export function periodQuestions(
                 });
             }
 
-            if (insights.weekAgoClose !== null && insights.weekAgoChangePct !== null) {
+            /**
+             * The horizon questions are gated on how much the comparison
+             * actually moved, not merely on the data existing.
+             *
+             * Before this, every day page asked the same seven questions in the
+             * same order, and the FAQ block is half the page's text — which is
+             * most of why any two day pages were 90-100% identical once dates
+             * and numbers were stripped. Selecting by magnitude keeps each
+             * question type appearing across the corpus (so the long-tail
+             * intent it targets is still covered somewhere) while making any
+             * two neighbouring pages ask a different mix.
+             *
+             * A comparison that barely moved is also the least interesting
+             * thing to tell a reader, so this improves the page as well as
+             * differentiating it.
+             */
+            // Calibrated against the real series rather than guessed: at 1/3/5
+            // almost every session cleared all three, so the gate did nothing.
+            // These leave each question firing on a large minority of days —
+            // enough that the corpus still covers the intent, few enough that
+            // neighbouring pages differ.
+            const WEEK_WORTH_ASKING = 2;
+            const MONTH_WORTH_ASKING = 5;
+            const YEAR_WORTH_ASKING = 12;
+
+            if (
+                insights.weekAgoClose !== null &&
+                insights.weekAgoChangePct !== null &&
+                Math.abs(insights.weekAgoChangePct) >= WEEK_WORTH_ASKING
+            ) {
                 questions.push({
                     question: `How does the ${lower} price on ${label} compare with a week earlier?`,
                     answer:
@@ -129,7 +158,11 @@ export function periodQuestions(
                 });
             }
 
-            if (insights.monthAgoClose !== null && insights.monthAgoChangePct !== null) {
+            if (
+                insights.monthAgoClose !== null &&
+                insights.monthAgoChangePct !== null &&
+                Math.abs(insights.monthAgoChangePct) >= MONTH_WORTH_ASKING
+            ) {
                 questions.push({
                     question: `How does the ${lower} price on ${label} compare with a month earlier?`,
                     answer:
@@ -140,7 +173,11 @@ export function periodQuestions(
                 });
             }
 
-            if (insights.yearAgoClose !== null && insights.yearAgoChangePct !== null) {
+            if (
+                insights.yearAgoClose !== null &&
+                insights.yearAgoChangePct !== null &&
+                Math.abs(insights.yearAgoChangePct) >= YEAR_WORTH_ASKING
+            ) {
                 questions.push({
                     question: `How did the ${lower} price on ${label} compare with a year earlier?`,
                     answer:

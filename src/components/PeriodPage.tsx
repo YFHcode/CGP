@@ -9,6 +9,8 @@ import { CurrencyValue, CurrencyCode } from './CurrencyValue';
 import { cn } from '@/lib/utils';
 import { breadcrumbSchema, SITE_URL } from '@/lib/seo';
 import { periodQuestions, periodFaqSchema } from '@/lib/period-faq';
+import { computeDayProfile } from '@/lib/day-character';
+import { leadBlock, contextBlocks, characterQuestions } from '@/lib/day-narrative';
 import { computeInsights } from '@/lib/period-insights';
 import { computeDayHeadline } from '@/lib/day-headline';
 import {
@@ -61,7 +63,22 @@ export function PeriodPage({
     // Long-tail Q&A generated from the real figures. This is where search
     // intent like "what was the average gold price in March 2026" is targeted.
     const insights = computeInsights(stats, series, otherSeries, metal);
-    const questions = periodQuestions(metal, stats, insights);
+
+    /**
+     * Per-day character, which decides which sections and which questions this
+     * page renders. Day pages previously shared a fixed skeleton and a fixed
+     * question set, so stripping the date and the numbers left them 90-100%
+     * identical to one another. Selecting by what the session actually was
+     * means a record close and a flat Tuesday no longer read the same.
+     */
+    const profile = isSingleDay ? computeDayProfile(series, period.key) : null;
+    const lead = profile ? leadBlock(profile, route.name) : null;
+    const context = profile ? contextBlocks(profile, route.name) : [];
+
+    const questions = [
+        ...periodQuestions(metal, stats, insights),
+        ...(profile ? characterQuestions(profile, route.name) : []),
+    ];
     const pct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 
     const trail = [
@@ -166,6 +183,43 @@ export function PeriodPage({
                             <strong className="font-semibold">Notable session:</strong>{' '}
                             {notableReasons.join('; ')}.
                         </p>
+                    </div>
+                </section>
+            )}
+
+            {/*
+                Character-driven narrative. What appears here — and whether
+                anything appears at all — depends on what the session actually
+                was, so two adjacent day pages no longer share a skeleton. An
+                unremarkable day renders nothing and is legitimately shorter
+                rather than padded to match its neighbours.
+            */}
+            {(lead || context.length > 0) && (
+                <section className="border-b border-white/5 bg-zinc-900/20 py-8">
+                    <div className="container mx-auto px-4">
+                        {lead && (
+                            <div className="mb-6 max-w-3xl">
+                                <h2 className="mb-2 text-xl font-bold text-white">
+                                    {lead.heading}
+                                </h2>
+                                <p className="text-zinc-300">{lead.body}</p>
+                            </div>
+                        )}
+                        {context.length > 0 && (
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {context.map((block) => (
+                                    <article
+                                        key={block.heading}
+                                        className="rounded-lg border border-white/10 p-4"
+                                    >
+                                        <h3 className="mb-1 text-sm font-semibold text-gold-400">
+                                            {block.heading}
+                                        </h3>
+                                        <p className="text-sm text-zinc-300">{block.body}</p>
+                                    </article>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </section>
             )}
