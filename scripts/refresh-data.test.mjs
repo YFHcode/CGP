@@ -11,6 +11,8 @@ import {
     mergeNewsArchive,
     parseApiKeys,
     collectExchangeRates,
+    sparseYears,
+    windowsForYears,
 } from './refresh-data.mjs';
 
 const SAMPLE_CSV = `Date,Open,High,Low,Close,Volume
@@ -382,4 +384,96 @@ test('malformed input yields a USD-only map rather than throwing', () => {
         assert.deepEqual(collectExchangeRates(bad), { USD: 1 });
     }
     assert.deepEqual(collectExchangeRates([]), { USD: 1 });
+});
+
+// --- sparseYears / windowsForYears ----------------------------------------
+
+const dailyYear = (year, n = 250) => {
+    const pts = [];
+    const d = new Date(Date.UTC(year, 0, 1));
+    while (pts.length < n) {
+        if (d.getUTCDay() % 6 !== 0) pts.push({ date: d.toISOString().slice(0, 10), close: 100 });
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return pts;
+};
+const monthlyYear = (year) =>
+    Array.from({ length: 12 }, (_, m) => ({
+        date: `${year}-${String(m + 1).padStart(2, '0')}-01`,
+        close: 100,
+    }));
+
+test('sparseYears separates monthly years from daily ones by a wide margin', () => {
+    const points = [...monthlyYear(2020), ...monthlyYear(2021), ...dailyYear(2022)];
+    assert.deepEqual(sparseYears(points, { endYear: 2022 }), [2020, 2021]);
+});
+
+test('the threshold is not delicately placed between the two cadences', () => {
+    // A trading year is ~250 sessions and a monthly sample is 12; the cutoff
+    // sits far from both, so neither classification is a close call.
+    const monthly = monthlyYear(2020).length;
+    const daily = dailyYear(2020).length;
+    assert.ok(monthly < 100 / 2, `monthly year (${monthly}) should be well under the threshold`);
+    assert.ok(daily > 100 * 2, `daily year (${daily}) should be well over the threshold`);
+});
+
+test('sparseYears does not reach back before the series begins', () => {
+    // Backfilling years a contract did not exist for would fetch empty windows
+    // on every run, forever.
+    const points = dailyYear(2020);
+    assert.deepEqual(sparseYears(points, { startYear: 1995, endYear: 2020 }), []);
+});
+
+test('sparseYears reports years missing entirely from the series', () => {
+    const points = [...dailyYear(2020), ...dailyYear(2023)];
+    assert.deepEqual(sparseYears(points, { endYear: 2023 }), [2021, 2022]);
+});
+
+test('sparseYears treats an empty or unparseable series as needing the current year', () => {
+    // Not an edge case to swallow: a series with nothing usable in it really
+    // does lack data for the current year, and asking for one window is the
+    // correct response. What matters is that it never throws and never asks
+    // for decades it has no evidence for.
+    for (const bad of [null, undefined, 'nope', 42, [], [{ date: 'not-a-date' }]]) {
+        const years = sparseYears(bad, { endYear: 2020 });
+        assert.deepEqual(years, [2020], `unexpected result for ${JSON.stringify(bad)}`);
+    }
+});
+
+test('windowsForYears merges consecutive years up to the window width', () => {
+    assert.deepEqual(windowsForYears([2000, 2001, 2002, 2003], 2), [
+        { start: 2000, end: 2001 },
+        { start: 2002, end: 2003 },
+    ]);
+});
+
+test('windowsForYears does not bridge a gap between non-consecutive years', () => {
+    // 2005 and 2009 must not be merged into one window, or the request would
+    // silently cover four years and defeat the point of windowing.
+    assert.deepEqual(windowsForYears([2005, 2009], 2), [
+        { start: 2005, end: 2005 },
+        { start: 2009, end: 2009 },
+    ]);
+});
+
+test('windowsForYears dedupes, sorts and ignores non-integers', () => {
+    assert.deepEqual(windowsForYears([2002, 2001, 2001, null, 'x', 2002], 2), [
+        { start: 2001, end: 2002 },
+    ]);
+    assert.deepEqual(windowsForYears([], 2), []);
+    assert.deepEqual(windowsForYears(null, 2), []);
+});
+
+test('a full backfill of a 26-year monthly series costs a bounded number of requests', () => {
+    const points = [];
+    for (let y = 2000; y <= 2025; y++) points.push(...monthlyYear(y));
+    const windows = windowsForYears(sparseYears(points, { endYear: 2025 }), 2);
+    assert.equal(windows.length, 13, `expected 13 two-year windows, got ${windows.length}`);
+});
+
+test('once backfilled, a dense series asks for nothing', () => {
+    // The property that keeps this from re-fetching the archive twice a day.
+    const points = [];
+    for (let y = 2020; y <= 2023; y++) points.push(...dailyYear(y));
+    assert.deepEqual(windowsForYears(sparseYears(points, { endYear: 2023 }), 2), []);
 });

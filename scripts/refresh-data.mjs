@@ -185,6 +185,62 @@ export function collectExchangeRates(entries) {
 }
 
 /**
+ * Years in a series that are too sparse to be daily.
+ *
+ * A trading year holds roughly 250 sessions; a monthly sample holds 12. The
+ * threshold sits far from both, so this is a clean classification rather than
+ * a tuned one.
+ *
+ * This is what keeps the backfill from re-fetching the whole archive twice a
+ * day forever: once a year has been filled in it stops being sparse, so steady
+ * state is one or two windows per run instead of fourteen.
+ */
+export function sparseYears(points, { minPerYear = 100, startYear = 1990, endYear } = {}) {
+    const last = endYear ?? new Date().getUTCFullYear();
+    const counts = new Map();
+    for (const point of Array.isArray(points) ? points : []) {
+        const year = Number(String(point?.date ?? '').slice(0, 4));
+        if (!Number.isInteger(year)) continue;
+        counts.set(year, (counts.get(year) ?? 0) + 1);
+    }
+
+    // Only consider years the series actually reaches into: backfilling years
+    // before a contract existed would fetch empty windows every run.
+    const known = [...counts.keys()].filter((y) => Number.isInteger(y));
+    const first = known.length > 0 ? Math.min(...known) : last;
+    const from = Math.max(startYear, first);
+
+    const sparse = [];
+    for (let year = from; year <= last; year++) {
+        if ((counts.get(year) ?? 0) < minPerYear) sparse.push(year);
+    }
+    return sparse;
+}
+
+/**
+ * Groups years into fetch windows, merging consecutive years so a full
+ * backfill costs one request per window rather than one per year.
+ */
+export function windowsForYears(years, windowYears = 2) {
+    const sorted = [...new Set(Array.isArray(years) ? years : [])]
+        .filter((y) => Number.isInteger(y))
+        .sort((a, b) => a - b);
+
+    const windows = [];
+    for (const year of sorted) {
+        const open = windows[windows.length - 1];
+        // Extend the open window when this year is adjacent and the window has
+        // not yet reached its width.
+        if (open && year === open.end + 1 && open.end - open.start + 1 < windowYears) {
+            open.end = year;
+        } else {
+            windows.push({ start: year, end: year });
+        }
+    }
+    return windows;
+}
+
+/**
  * Parses a Stooq daily CSV export into ascending [{ date, close }].
  * Rows that are malformed or carry non-numeric closes (Stooq emits "N/A" for
  * missing sessions) are dropped rather than poisoning the series with NaN.
@@ -497,6 +553,14 @@ async function fetchQuote(symbol) {
  */
 const YAHOO_HISTORY_RANGE = 'max';
 
+/**
+ * Backfill bounds. 1995 is comfortably before the oldest contract the probe
+ * found (platinum reaches 1997-11), and sparseYears() clamps to the years the
+ * series actually covers, so an early start costs nothing.
+ */
+const YAHOO_BACKFILL_START_YEAR = Number(process.env.YAHOO_BACKFILL_START_YEAR || 1995);
+const YAHOO_BACKFILL_WINDOW_YEARS = Number(process.env.YAHOO_BACKFILL_WINDOW_YEARS || 2);
+
 async function fetchYahooHistory(symbol, yahooSymbol) {
     const url = `${YAHOO_URL}/${encodeURIComponent(yahooSymbol)}?range=${YAHOO_HISTORY_RANGE}&interval=1d`;
     const res = await fetchWithTimeout(url);
@@ -510,6 +574,66 @@ async function fetchYahooHistory(symbol, yahooSymbol) {
     // Named so the UI can say what the series actually is, rather than implying
     // these are spot prices.
     return { points, source: 'Yahoo Finance (COMEX futures)' };
+}
+
+/**
+ * Backfills the years the stored series holds only monthly samples for.
+ *
+ * `range=max` looks like it should be the whole archive, and it is — at the
+ * wrong resolution. Yahoo silently downsamples long ranges: a CI probe
+ * (scripts/probe-history-depth.mjs) measured 267 points across 26 years, with
+ * zero weekend-sized gaps, where explicit period1/period2 windows returned
+ * 6,525 points over the same span. Same endpoint, same interval parameter,
+ * ~24× the data.
+ *
+ * That mattered because roughly 60% of this site's year-specific search
+ * demand points at pre-2024 years — precisely the stretch that was monthly.
+ *
+ * Only sparse years are fetched, so this costs fourteen requests once and one
+ * or two per run thereafter. Windows that fail or come back empty are skipped
+ * rather than aborting the run: a partial backfill still improves the series,
+ * and mergeSeries is additive so the next run retries whatever is still thin.
+ */
+async function backfillYahooHistory(symbol, yahooSymbol, existing) {
+    const years = sparseYears(existing, { startYear: YAHOO_BACKFILL_START_YEAR });
+    if (years.length === 0) return [];
+
+    const windows = windowsForYears(years, YAHOO_BACKFILL_WINDOW_YEARS);
+    console.log(
+        `[refresh] ${symbol}: ${years.length} sparse year(s), backfilling in ${windows.length} window(s)`
+    );
+
+    const collected = [];
+    for (const window of windows) {
+        // Inclusive of the whole end year.
+        const from = Math.floor(Date.UTC(window.start, 0, 1) / 1000);
+        const to = Math.floor(Math.min(Date.UTC(window.end + 1, 0, 1), Date.now()) / 1000);
+        if (to <= from) continue;
+
+        const url = `${YAHOO_URL}/${encodeURIComponent(yahooSymbol)}?period1=${from}&period2=${to}&interval=1d`;
+        try {
+            const res = await fetchWithTimeout(url);
+            if (!res.ok) {
+                console.warn(
+                    `[refresh] ${symbol} backfill ${window.start}-${window.end}: ${res.status} ${res.statusText}`
+                );
+                continue;
+            }
+            const points = parseYahooChart(await res.json());
+            collected.push(...points);
+            console.log(
+                `[refresh] ${symbol} backfill ${window.start}-${window.end}: ${points.length} pts`
+            );
+        } catch (error) {
+            console.warn(
+                `[refresh] ${symbol} backfill ${window.start}-${window.end} failed: ${error.message ?? error}`
+            );
+        }
+        // Yahoo is keyless and unmetered; stay a polite client anyway.
+        await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+
+    return collected;
 }
 
 async function fetchStooqHistory(symbol) {
@@ -529,7 +653,7 @@ async function fetchStooqHistory(symbol) {
  * Tries each history provider in order and returns the first that yields data.
  * Ordered by data quality: Yahoo spot, Yahoo futures, then Stooq.
  */
-async function fetchHistory(symbol) {
+async function fetchHistory(symbol, existing = []) {
     const attempts = [
         ...YAHOO_SYMBOLS[symbol].map((y) => () => fetchYahooHistory(symbol, y)),
         () => fetchStooqHistory(symbol),
@@ -538,7 +662,28 @@ async function fetchHistory(symbol) {
     const errors = [];
     for (const attempt of attempts) {
         try {
-            return await attempt();
+            const result = await attempt();
+
+            // Top up the thin years, if any. Only Yahoo can serve them, so this
+            // is skipped when a later provider answered. Failure here is not
+            // fatal: the freshly fetched series is already an improvement, and
+            // the next run retries whatever is still sparse.
+            if (result.source.startsWith('Yahoo')) {
+                const yahooSymbol = YAHOO_SYMBOLS[symbol][0];
+                // Judge sparseness against what we will actually hold, so a
+                // year already dense in the stored file isn't re-fetched just
+                // because this response didn't include it.
+                const combined = mergeSeries(existing, result.points, MAX_HISTORY_POINTS);
+                const filled = await backfillYahooHistory(symbol, yahooSymbol, combined);
+                if (filled.length > 0) {
+                    return {
+                        points: mergeSeries(result.points, filled, MAX_HISTORY_POINTS),
+                        source: result.source,
+                    };
+                }
+            }
+
+            return result;
         } catch (error) {
             errors.push(String(error.message ?? error));
         }
@@ -673,7 +818,9 @@ async function main() {
 
         // --- Historical series ------------------------------------------
         try {
-            const { points, source } = await fetchHistory(symbol);
+            // The stored series is passed in so the backfill can tell which
+            // years are already dense and skip them.
+            const { points, source } = await fetchHistory(symbol, history.series[symbol] ?? []);
             history.series[symbol] = mergeSeries(history.series[symbol], points);
             history.source = source;
             historyChanged = true;
