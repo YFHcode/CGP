@@ -63,6 +63,13 @@ export async function MinorMetalPage({ metal }: { metal: MinorMetal }) {
     const perGram = price === null ? null : price / GRAMS_PER_OZ;
     const facts = describeCoverage(series);
 
+    // history.json holds one source string for the whole file, written by the
+    // gold and silver fetch, so it names COMEX. These two are NYMEX contracts.
+    // A targeted replace rather than a hardcoded label: if the provider ever
+    // changes, the rest of the attribution still comes through, and the
+    // replace is a harmless no-op when COMEX isn't mentioned.
+    const chartSource = source ? source.replace('COMEX', metal.futuresExchange) : source;
+
     // The ratio against gold is the number that gives these pages a reason to
     // exist beyond the raw quote, and it is genuinely different per metal:
     // platinum below gold is the historical anomaly, palladium below gold is
@@ -140,7 +147,7 @@ export async function MinorMetalPage({ metal }: { metal: MinorMetal }) {
                     lockMetal
                     metal={metal.chartMetal}
                     series={series}
-                    source={source}
+                    source={chartSource}
                     title={`${metal.name} closing prices`}
                 />
             )}
