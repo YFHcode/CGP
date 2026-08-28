@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getPrices, getHistory } from '@/lib/prices';
+import { getPrices, getHistory, getMinorMetal } from '@/lib/prices';
 import { GRAMS_PER_OZ, GRAMS_PER_KG, GRAMS_PER_TOLA, GRAMS_PER_PAVAN } from '@/lib/conversions';
 import { SITE_URL } from '@/lib/navigation';
 
@@ -28,7 +28,12 @@ export async function GET(request: Request) {
     const includeGold = wanted === 'gold' || wanted === 'both';
     const includeSilver = wanted === 'silver' || wanted === 'both';
 
-    const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);
+    const [{ gold, silver, updatedAt }, history, platinum, palladium] = await Promise.all([
+        getPrices(),
+        getHistory(),
+        getMinorMetal('XPT'),
+        getMinorMetal('XPD'),
+    ]);
 
     const byWeight = (pricePerOz: number) => ({
         troy_ounce: Number(pricePerOz.toFixed(4)),
@@ -59,11 +64,20 @@ export async function GET(request: Request) {
                     gold && silver && silver.price > 0
                         ? Number((gold.price / silver.price).toFixed(2))
                         : null,
+                // Added alongside gold and silver rather than in a separate
+                // endpoint: a caller asking for metals prices wants all four,
+                // and splitting them would double the requests for no reason.
+                platinum: platinum.quote ? { symbol: 'XPT', ...byWeight(platinum.quote.price) } : null,
+                palladium: palladium.quote
+                    ? { symbol: 'XPD', ...byWeight(palladium.quote.price) }
+                    : null,
             },
             history: {
                 available: {
                     gold: history.gold.length,
                     silver: history.silver.length,
+                    platinum: platinum.series.length,
+                    palladium: palladium.series.length,
                 },
                 usage: `Add ?history=gold, ?history=silver or ?history=both to include the close series`,
                 gold: includeGold ? history.gold : undefined,

@@ -24,7 +24,22 @@ export interface GoldPriceResponse {
   price_gram_10k: number;
 }
 
+/**
+ * Gold and silver, deliberately kept as their own type.
+ *
+ * A great deal of the site's logic is specific to these two — karat purity,
+ * the gold-to-silver ratio, scrap and melt values, junk silver. Widening this
+ * union to cover platinum and palladium would make all of that typecheck
+ * against metals it is meaningless for (there is no "22K platinum"), so the
+ * newer metals get their own symbol type and their own pages instead.
+ */
 export type MetalSymbol = 'XAU' | 'XAG';
+
+/** Platinum and palladium: same feed, different story, no karat system. */
+export type MinorMetalSymbol = 'XPT' | 'XPD';
+
+/** Anything the price snapshot may hold. */
+export type AnyMetalSymbol = MetalSymbol | MinorMetalSymbol;
 
 /** A single day of historical closing data. */
 export interface HistoryPoint {
@@ -41,7 +56,7 @@ export interface HistoryPoint {
 export interface PriceSnapshot {
   /** ISO timestamp of the last successful refresh, or null if never run. */
   updatedAt: string | null;
-  metals: Partial<Record<MetalSymbol, GoldPriceResponse>>;
+  metals: Partial<Record<AnyMetalSymbol, GoldPriceResponse>>;
 }
 
 /** Shape of `data/history.json`. */
@@ -49,7 +64,7 @@ export interface HistorySnapshot {
   updatedAt: string | null;
   /** Where the series came from, for attribution in the UI. */
   source: string | null;
-  series: Partial<Record<MetalSymbol, HistoryPoint[]>>;
+  series: Partial<Record<AnyMetalSymbol, HistoryPoint[]>>;
 }
 
 /** News item returned by the news provider. Shared by server and client code. */

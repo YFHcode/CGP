@@ -8,6 +8,7 @@ import type {
     HistoryPoint,
     HistorySnapshot,
     MetalSymbol,
+    MinorMetalSymbol,
     PriceSnapshot,
 } from '@/types';
 import { getMetalPrice } from './gold-api';
@@ -111,6 +112,36 @@ export const getHistory = cache(async (): Promise<MetalHistory> => {
         updatedAt: snapshot.updatedAt ?? null,
     };
 });
+
+export interface MinorMetalData {
+    quote: GoldPriceResponse | null;
+    series: HistoryPoint[];
+    source: string | null;
+    updatedAt: string | null;
+}
+
+/**
+ * Snapshot data for platinum or palladium.
+ *
+ * Snapshot-only, with no live-call fallback, unlike getPrices(). Gold and
+ * silver are the pages worth spending an API request to rescue when the
+ * snapshot is stale; for these two a stale price and an honest timestamp is
+ * the better trade, and it keeps the metered quote provider untouched.
+ */
+export const getMinorMetal = cache(
+    async (symbol: MinorMetalSymbol): Promise<MinorMetalData> => {
+        const [prices, history] = await Promise.all([
+            readPriceSnapshot(),
+            readHistorySnapshot(),
+        ]);
+        return {
+            quote: prices.metals?.[symbol] ?? null,
+            series: history.series?.[symbol] ?? [],
+            source: history.source ?? null,
+            updatedAt: prices.updatedAt ?? null,
+        };
+    }
+);
 
 export interface NewsArchiveEntry {
     title: string;
