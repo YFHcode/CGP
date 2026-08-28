@@ -21,26 +21,46 @@ import type { HistoryPoint } from "@/types";
  * "hourly" for data that updates twice a day.
  */
 /**
- * Earliest day-archive page advertised in the sitemap.
+ * Which day-archive pages are advertised in the sitemap.
  *
- * The stored series now holds daily closes back to 2000 rather than monthly
- * ones, which makes roughly 6,900 day pages per metal renderable instead of
- * ~770. Listing all of them would take this sitemap from ~2,200 URLs to over
- * 14,000 in a single step.
+ * The backfill makes roughly 6,900 day pages per metal renderable instead of
+ * ~770. Listing every one would take this sitemap past 14,000 URLs in a single
+ * step, on a domain where 3,422 impressions a week already sit at position 51+
+ * earning no clicks. So the listing opens deliberately, in two bands:
  *
- * That is deliberately not done here. Measured on this site, day-archive pages
- * are 90-100% identical to each other once the date and the numbers are
- * stripped out, and 3,422 impressions a week already sit at position 51+
- * earning no clicks. Multiplying a template that thin by eight is the exact
- * failure mode to avoid on a domain with almost no authority.
+ *  - ARCHIVE_DAY_FROM: the recent era, where dated queries actually convert
+ *    ("gold price on 18 september 2024" ranks at position 3.6).
+ *  - ARCHIVE_DAY_YEARS: individual historical years Search Console shows real
+ *    demand for. These seven carry the bulk of the pre-2024 year-specific
+ *    impressions, so they earn their listing on evidence rather than on the
+ *    assumption that more URLs is better.
  *
- * The pages still render and remain reachable — only the sitemap listing is
- * bounded, so historical days can be opened up deliberately by moving this
- * date back, ideally after the per-page content is more differentiated or
- * once Search Console shows the existing day pages converting impressions
- * into clicks.
+ * Everything else still renders and stays reachable — it is simply not
+ * advertised until it has a reason to be. Both bands are env-overridable, so
+ * widening later is a config change rather than a code change.
  */
 const ARCHIVE_DAY_FROM = process.env.ARCHIVE_DAY_FROM || "2024-08-01";
+
+const ARCHIVE_DAY_YEARS = new Set(
+  (process.env.ARCHIVE_DAY_YEARS || "2005,2008,2011,2012,2016,2019,2020")
+    .split(",")
+    .map((year) => year.trim())
+    .filter(Boolean),
+);
+
+/**
+ * Whether one day-archive period is advertised. Exported so the rule that
+ * decides what gets published is testable on its own, rather than only
+ * observable by diffing a generated sitemap.
+ */
+export function isListedArchiveDay(
+  periodKey: string,
+  from: string = ARCHIVE_DAY_FROM,
+  years: Set<string> = ARCHIVE_DAY_YEARS,
+): boolean {
+  if (typeof periodKey !== "string" || periodKey.length < 4) return false;
+  return periodKey >= from || years.has(periodKey.slice(0, 4));
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -197,7 +217,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(() => {
       const notable = notableDaySet(series);
       return listPeriods(series, "day")
-        .filter((period) => period >= ARCHIVE_DAY_FROM)
+        .filter((period) => isListedArchiveDay(period))
         .map((period) => ({
           url: `${SITE_URL}/${base}/${slugForKey(period, "day")}`,
           lastModified: new Date(`${period}T00:00:00Z`),
