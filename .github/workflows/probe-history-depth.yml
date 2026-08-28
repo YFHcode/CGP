@@ -1,0 +1,44 @@
+name: Probe history depth
+
+# Diagnostic only — never writes to data/.
+#
+# Settles whether Yahoo can supply true daily closes back to 2000, or whether
+# the pre-2024 monthly resolution in history.json is a hard limit of the
+# source. It matters because most of the site's year-specific search demand
+# points at pre-2024 years, where the stored series holds roughly one point a
+# month.
+#
+# Runs here rather than locally because Yahoo is unreachable from the
+# sandboxed dev environment; GitHub runners have unrestricted egress.
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: 'Comma-separated Yahoo symbols to probe'
+        default: 'GC=F,SI=F'
+      window_years:
+        description: 'Width of each period1/period2 window, in years'
+        default: '2'
+
+concurrency:
+  group: probe-history-depth
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Probe Yahoo history depth
+        env:
+          PROBE_SYMBOLS: ${{ inputs.symbols }}
+          PROBE_WINDOW_YEARS: ${{ inputs.window_years }}
+        run: node scripts/probe-history-depth.mjs
