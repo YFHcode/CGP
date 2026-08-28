@@ -104,6 +104,13 @@ export const NAV_GROUPS: NavGroup[] = [
                 ],
             },
             {
+                title: 'Other metals',
+                links: [
+                    { href: '/platinum-price', label: 'Platinum price' },
+                    { href: '/palladium-price', label: 'Palladium price' },
+                ],
+            },
+            {
                 title: 'Coins',
                 links: [
                     { href: '/melt-value/silver-quarter', label: 'Silver quarter value' },

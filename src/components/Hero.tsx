@@ -1,6 +1,5 @@
-import { PriceCard } from './PriceCard';
+import { LivePriceCards } from './LivePriceCards';
 import { LastUpdated } from './LastUpdated';
-import { cn } from '@/lib/utils';
 import type { GoldPriceResponse, MetalSymbol } from '@/types';
 
 interface HeroProps {
@@ -53,19 +52,7 @@ export function Hero({
                     </div>
                 )}
 
-                <div
-                    className={cn(
-                        'mx-auto grid grid-cols-1 gap-6',
-                        metal ? 'max-w-md' : 'max-w-4xl md:grid-cols-2'
-                    )}
-                >
-                    {(!metal || metal === 'XAU') && (
-                        <PriceCard symbol="XAU" name="Gold" data={goldData} />
-                    )}
-                    {(!metal || metal === 'XAG') && (
-                        <PriceCard symbol="XAG" name="Silver" data={silverData} />
-                    )}
-                </div>
+                <LivePriceCards goldData={goldData} silverData={silverData} metal={metal} />
 
                 <div className="mt-6">
                     <LastUpdated updatedAt={updatedAt ?? null} />

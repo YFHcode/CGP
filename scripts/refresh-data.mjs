@@ -87,6 +87,10 @@ const YAHOO_URL = process.env.YAHOO_URL || 'https://query1.finance.yahoo.com/v8/
 const YAHOO_SYMBOLS = {
     XAU: ['GC=F'],
     XAG: ['SI=F'],
+    // NYMEX platinum and palladium futures, the same contract family as the
+    // COMEX gold and silver symbols above.
+    XPT: ['PL=F'],
+    XPD: ['PA=F'],
 };
 
 /**
@@ -97,7 +101,7 @@ const YAHOO_SYMBOLS = {
  * through. Left in place in case it starts working again.
  */
 const STOOQ_URL = process.env.STOOQ_URL || 'https://stooq.com/q/d/l/';
-const STOOQ_SYMBOLS = { XAU: 'xauusd', XAG: 'xagusd' };
+const STOOQ_SYMBOLS = { XAU: 'xauusd', XAG: 'xagusd', XPT: 'xptusd', XPD: 'xpdusd' };
 
 /**
  * Cap applied when PARSING a provider response, purely to bound one payload.
@@ -134,11 +138,51 @@ const CURRENCY_API_KEY =
     process.env.CURRENCY_API_KEY || 'fca_live_Ik8ZCBK09jDNbxQPqYHaD6q4WyEtJqu9Qw80hoPr';
 const RATE_CURRENCIES = ['EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR'];
 
-const SYMBOLS = ['XAU', 'XAG'];
+/**
+ * Metals fetched every run. Platinum and palladium ride the same quote and
+ * history paths as gold and silver; only the pages built on top of them
+ * differ, because karat purity and the gold-silver ratio don't apply.
+ */
+const SYMBOLS = ['XAU', 'XAG', 'XPT', 'XPD'];
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested in refresh-data.test.mjs)
 // ---------------------------------------------------------------------------
+
+/**
+ * Builds a USD-based rate map from gold-api.com price responses.
+ *
+ * That provider returns the FX rate it used alongside every converted quote,
+ * which makes it a second opinion on rates at no extra cost — worth having,
+ * because when the primary rates provider fails the per-currency pages fall
+ * back to a stale snapshot and eventually to USD-only.
+ *
+ * The guard that matters is the currency check. If the provider ever ignores
+ * the currency path segment and answers in USD, the payload still looks
+ * perfectly valid — exchangeRate 1, price sensible — and accepting it would
+ * record INR = 1 and quote Indian prices at the dollar figure. Every entry
+ * must therefore come back in the currency it was asked for.
+ */
+export function collectExchangeRates(entries) {
+    const clean = { USD: 1 };
+    if (!Array.isArray(entries)) return clean;
+
+    for (const entry of entries) {
+        const requested = typeof entry?.requested === 'string' ? entry.requested.toUpperCase() : '';
+        const payload = entry?.payload;
+        if (!requested || requested === 'USD' || !payload) continue;
+
+        const answered = typeof payload.currency === 'string' ? payload.currency.toUpperCase() : '';
+        if (answered !== requested) continue;
+
+        const rate = Number(payload.exchangeRate);
+        if (!Number.isFinite(rate) || rate <= 0) continue;
+
+        clean[requested] = rate;
+    }
+
+    return clean;
+}
 
 /**
  * Parses a Stooq daily CSV export into ascending [{ date, close }].
@@ -411,8 +455,23 @@ async function fetchQuoteFromGoldApiCom(symbol) {
     };
 }
 
+/**
+ * Metals served only by the keyless provider.
+ *
+ * Not a capability gap — GoldAPI.io quotes platinum and palladium too — but a
+ * quota one. Its free keys allow 100 requests/month each; two runs a day
+ * across four metals would need ~244 of the ~300 the three keys provide,
+ * leaving almost no margin for a retry or an extra run. Gold and silver are
+ * the pages that need the richer fields (karat grams, day range), so they keep
+ * the metered source and these two take the unmetered one.
+ */
+const KEYLESS_ONLY_SYMBOLS = new Set(['XPT', 'XPD']);
+
 /** Tries the primary quote source, then the keyless fallback. */
 async function fetchQuote(symbol) {
+    if (KEYLESS_ONLY_SYMBOLS.has(symbol)) {
+        return fetchQuoteFromGoldApiCom(symbol);
+    }
     try {
         return await fetchQuoteFromGoldApi(symbol);
     } catch (error) {
@@ -519,6 +578,45 @@ async function fetchRates() {
     return clean;
 }
 
+/**
+ * Keyless rates fallback, read off gold-api.com's per-currency quotes.
+ *
+ * One request per currency rather than a single rates call, because that
+ * provider exposes FX only as a side effect of a price conversion. Seven
+ * requests twice a day is negligible, and this only runs when the primary
+ * has already failed.
+ */
+async function fetchRatesFromGoldApiCom() {
+    const entries = await Promise.all(
+        RATE_CURRENCIES.map(async (requested) => {
+            try {
+                const res = await fetchWithTimeout(`${GOLD_API_COM_URL}/XAU/${requested}`);
+                if (!res.ok) return { requested, payload: null };
+                return { requested, payload: await res.json() };
+            } catch {
+                return { requested, payload: null };
+            }
+        })
+    );
+
+    const rates = collectExchangeRates(entries);
+    if (Object.keys(rates).length <= 1) {
+        throw new Error('gold-api.com: no usable rates in responses');
+    }
+    return rates;
+}
+
+/** Primary rates source, then the keyless fallback. */
+async function fetchRatesWithFallback() {
+    try {
+        return { rates: await fetchRates(), source: 'freecurrencyapi.com' };
+    } catch (error) {
+        console.warn(`[refresh] primary rates failed: ${error.message ?? error}`);
+        console.warn('[refresh] trying keyless rates fallback...');
+        return { rates: await fetchRatesFromGoldApiCom(), source: 'gold-api.com' };
+    }
+}
+
 /** Fetches current headlines. Only link metadata is retained. */
 async function fetchNews() {
     const params = new URLSearchParams({
@@ -600,10 +698,14 @@ async function main() {
     // --- Exchange rates --------------------------------------------------
     let ratesChanged = false;
     try {
-        rates.rates = await fetchRates();
+        const { rates: fetched, source } = await fetchRatesWithFallback();
+        rates.rates = fetched;
         rates.base = 'USD';
+        rates.source = source;
         ratesChanged = true;
-        console.log(`[refresh] rates: ${Object.keys(rates.rates).length} currencies`);
+        console.log(
+            `[refresh] rates: ${Object.keys(rates.rates).length} currencies from ${source}`
+        );
     } catch (error) {
         failures.push(String(error.message ?? error));
         console.error(`[refresh] rates failed: ${error.message ?? error}`);

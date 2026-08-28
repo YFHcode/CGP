@@ -10,6 +10,7 @@ import {
     toArchiveEntry,
     mergeNewsArchive,
     parseApiKeys,
+    collectExchangeRates,
 } from './refresh-data.mjs';
 
 const SAMPLE_CSV = `Date,Open,High,Low,Close,Volume
@@ -308,4 +309,77 @@ test('parseApiKeys trims whitespace and drops empty entries from a ragged list',
 
 test('parseApiKeys handles a single key with no commas', () => {
     assert.deepEqual(parseApiKeys('only-one-key', 'key-a,key-b'), ['only-one-key']);
+});
+
+// --- collectExchangeRates --------------------------------------------------
+
+const quote = (currency, exchangeRate) => ({
+    currency,
+    currencySymbol: '$',
+    exchangeRate,
+    name: 'Gold',
+    price: 4400 * exchangeRate,
+    symbol: 'XAU',
+});
+
+test('collectExchangeRates builds a USD-based map and always anchors USD at 1', () => {
+    const rates = collectExchangeRates([
+        { requested: 'EUR', payload: quote('EUR', 0.92) },
+        { requested: 'INR', payload: quote('INR', 87.4) },
+        { requested: 'JPY', payload: quote('JPY', 155.2) },
+    ]);
+    assert.equal(rates.USD, 1);
+    assert.equal(rates.EUR, 0.92);
+    assert.equal(rates.INR, 87.4);
+    assert.equal(rates.JPY, 155.2);
+});
+
+test('a quote answered in the wrong currency is rejected, not recorded as parity', () => {
+    // The failure this exists for: the provider ignores the currency segment
+    // and answers in USD. The payload is structurally valid, so only the
+    // currency check catches it — and accepting it would price Indian gold at
+    // the dollar figure.
+    const rates = collectExchangeRates([
+        { requested: 'INR', payload: quote('USD', 1) },
+        { requested: 'EUR', payload: quote('EUR', 0.92) },
+    ]);
+    assert.equal(rates.INR, undefined, 'INR must not be recorded from a USD answer');
+    assert.equal(rates.EUR, 0.92, 'the valid entry alongside it still lands');
+});
+
+test('the currency check is case-insensitive but not value-insensitive', () => {
+    const rates = collectExchangeRates([{ requested: 'eur', payload: quote('EUR', 0.92) }]);
+    assert.equal(rates.EUR, 0.92);
+});
+
+test('non-numeric, zero, negative and missing rates are dropped', () => {
+    const rates = collectExchangeRates([
+        { requested: 'EUR', payload: quote('EUR', 0) },
+        { requested: 'GBP', payload: quote('GBP', -1) },
+        { requested: 'CAD', payload: quote('CAD', Number.NaN) },
+        { requested: 'AUD', payload: quote('AUD', 'nope') },
+        { requested: 'CNY', payload: { currency: 'CNY' } },
+        { requested: 'JPY', payload: null },
+    ]);
+    assert.deepEqual(rates, { USD: 1 }, 'nothing usable should survive');
+});
+
+test('collectExchangeRates never produces a rate that would invert a conversion', () => {
+    // A USD-based rate is "how many units of the currency one dollar buys", so
+    // every accepted value must be strictly positive and finite; a zero would
+    // divide to Infinity downstream.
+    const rates = collectExchangeRates([
+        { requested: 'EUR', payload: quote('EUR', 0.92) },
+        { requested: 'INR', payload: quote('INR', 87.4) },
+    ]);
+    for (const [code, rate] of Object.entries(rates)) {
+        assert.ok(Number.isFinite(rate) && rate > 0, `${code} rate is unusable: ${rate}`);
+    }
+});
+
+test('malformed input yields a USD-only map rather than throwing', () => {
+    for (const bad of [null, undefined, 'nope', 42, {}]) {
+        assert.deepEqual(collectExchangeRates(bad), { USD: 1 });
+    }
+    assert.deepEqual(collectExchangeRates([]), { USD: 1 });
 });

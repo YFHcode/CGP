@@ -14,7 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { formatMetalPrice } from '@/lib/currencies';
-import type { HistoryPoint, MetalSymbol } from '@/types';
+import type { AnyMetalSymbol, HistoryPoint } from '@/types';
 
 type TimeRange = '1W' | '1M' | '6M' | '1Y' | '5Y' | '10Y' | 'MAX';
 
@@ -44,6 +44,20 @@ interface PriceChartCommonProps {
     title?: string;
 }
 
+export type ChartMetal = 'gold' | 'silver' | 'platinum' | 'palladium';
+
+/**
+ * Line colour and ticker per metal, kept in one place so the chart can't end
+ * up drawing a metal it has no label for. Platinum and palladium get cool
+ * tones distinct from each other and from silver's grey.
+ */
+const CHART_METALS: Record<ChartMetal, { color: string; symbol: AnyMetalSymbol }> = {
+    gold: { color: '#d6a93e', symbol: 'XAU' },
+    silver: { color: '#94a3b8', symbol: 'XAG' },
+    platinum: { color: '#7dd3fc', symbol: 'XPT' },
+    palladium: { color: '#c4b5fd', symbol: 'XPD' },
+};
+
 type PriceChartProps = PriceChartCommonProps &
     (
         | {
@@ -62,7 +76,12 @@ type PriceChartProps = PriceChartCommonProps &
                * accidentally pass both halves of.
                */
               lockMetal: true;
-              metal: 'gold' | 'silver';
+              /**
+               * Platinum and palladium are only ever locked — there is no
+               * four-way switcher, because the comparison the switcher exists
+               * for is gold against silver.
+               */
+              metal: ChartMetal;
               series: HistoryPoint[];
           }
     );
@@ -111,7 +130,7 @@ export function PriceChart(props: PriceChartProps) {
     const { source, title = 'Price history' } = props;
     const lockMetal = props.lockMetal ?? false;
 
-    const [activeMetal, setActiveMetal] = useState<'gold' | 'silver'>(
+    const [activeMetal, setActiveMetal] = useState<ChartMetal>(
         props.lockMetal ? props.metal : props.defaultMetal ?? 'gold'
     );
     const [timeRange, setTimeRange] = useState<TimeRange>('1M');
@@ -147,8 +166,7 @@ export function PriceChart(props: PriceChartProps) {
         }));
     }, [series, timeRange, convertPrice]);
 
-    const color = activeMetal === 'gold' ? '#d6a93e' : '#94a3b8';
-    const symbol: MetalSymbol = activeMetal === 'gold' ? 'XAU' : 'XAG';
+    const { color, symbol } = CHART_METALS[activeMetal];
     const hasData = data.length >= 2;
 
     return (
