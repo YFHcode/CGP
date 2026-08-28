@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -17,11 +17,53 @@ interface PriceCardProps {
         GoldPriceResponse,
         'price' | 'ch' | 'chp' | 'high_price' | 'low_price' | 'prev_close_price'
     > | null;
+    /** True while live polling is landing fresh quotes. */
+    isLive?: boolean;
+    /** Why the ticker is idle, when it is. */
+    closedReason?: string | null;
+    /** The provider's own timestamp for the live quote, not our poll time. */
+    quotedAt?: string | null;
 }
 
-export function PriceCard({ symbol, name, data }: PriceCardProps) {
+/** How long the up/down tint lingers after a price moves. */
+const FLASH_MS = 900;
+
+export function PriceCard({
+    symbol,
+    name,
+    data,
+    isLive = false,
+    closedReason = null,
+    quotedAt = null,
+}: PriceCardProps) {
     const { convertPrice, currency, activeCurrency } = useCurrency();
     const [unit, setUnit] = useState<WeightUnit>('oz');
+
+    /**
+     * Tint the headline briefly when the number moves, so a change that
+     * happens while the user is looking elsewhere on the card is still
+     * noticeable. Compared in USD-per-ounce — the raw feed value — so
+     * switching unit or currency doesn't read as a price movement.
+     */
+    const rawPrice = data?.price ?? null;
+    const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+    const [seenPrice, setSeenPrice] = useState<number | null>(rawPrice);
+
+    // Adjusting state during render rather than in an effect: this is derived
+    // from a changed prop, so React re-renders before committing and there is
+    // no cascading second pass.
+    if (rawPrice !== null && rawPrice !== seenPrice) {
+        setSeenPrice(rawPrice);
+        // The first observation establishes a baseline; it isn't a movement.
+        setFlash(seenPrice === null ? null : rawPrice > seenPrice ? 'up' : 'down');
+    }
+
+    // Clearing the tint is a timer, which is a genuine external system.
+    useEffect(() => {
+        if (!flash) return;
+        const timer = setTimeout(() => setFlash(null), FLASH_MS);
+        return () => clearTimeout(timer);
+    }, [flash]);
 
     if (!data) {
         return (
@@ -84,7 +126,28 @@ export function PriceCard({ symbol, name, data }: PriceCardProps) {
                         </div>
                         <div>
                             <h3 className="font-medium text-zinc-300">{name}</h3>
-                            <p className="text-xs text-zinc-400">Spot price ({displayCurrency})</p>
+                            <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+                                Spot price ({displayCurrency})
+                                {isLive && (
+                                    <span
+                                        className="inline-flex items-center gap-1 text-green-300"
+                                        title={
+                                            quotedAt
+                                                ? `Quoted ${new Date(quotedAt).toLocaleTimeString()}`
+                                                : undefined
+                                        }
+                                    >
+                                        <span
+                                            className="h-1.5 w-1.5 rounded-full bg-green-400 motion-safe:animate-pulse"
+                                            aria-hidden="true"
+                                        />
+                                        Live
+                                    </span>
+                                )}
+                                {!isLive && closedReason && (
+                                    <span className="text-zinc-500">· {closedReason}</span>
+                                )}
+                            </p>
                         </div>
                     </div>
                     {hasRange ? (
@@ -124,7 +187,22 @@ export function PriceCard({ symbol, name, data }: PriceCardProps) {
                 />
 
                 <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold tracking-tight text-white">
+                    {/*
+                        Not an aria-live region on purpose: announcing a new
+                        price every few seconds would make the page unusable
+                        with a screen reader. The value is readable on demand
+                        like any other text.
+                    */}
+                    <span
+                        className={cn(
+                            'text-3xl font-bold tracking-tight transition-colors duration-700 motion-reduce:transition-none',
+                            flash === 'up'
+                                ? 'text-green-300'
+                                : flash === 'down'
+                                  ? 'text-red-300'
+                                  : 'text-white'
+                        )}
+                    >
                         {formatMetalPrice(priceInUnit, displayCurrency)}
                     </span>
                     <span className="text-sm text-zinc-400">per {unit}</span>
