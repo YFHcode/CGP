@@ -31,10 +31,10 @@ import { faqSchema, pageMetadata } from '@/lib/seo';
  */
 
 export const metadata = pageMetadata({
-    title: 'Gold & Silver Prices Today — Live Charts, Forecasts and Calculators',
+    title: 'Gold & Silver Prices Today — Charts & Forecasts',
     description:
-        'Live gold, silver, platinum and palladium prices with technical charts, 7-day forecasts, ' +
-        'a karat value calculator and daily history back to 2000. Free JSON API, no key required.',
+        'Live gold, silver, platinum and palladium prices with charts, 7-day forecasts, ' +
+        'a karat value calculator and daily history back to 2000.',
     path: '/',
     keywords: [
         'gold price',

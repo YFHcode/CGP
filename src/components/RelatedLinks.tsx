@@ -56,6 +56,13 @@ export function RelatedLinks({ title = 'Explore more', links }: RelatedLinksProp
 /**
  * Canonical descriptions for every linkable page, so anchor text stays
  * consistent site-wide instead of drifting per page.
+ *
+ * A page missing from this library is a page no other page's body copy can
+ * link to. That is how the forecast, API, platinum and palladium pages ended
+ * up with one in-content inbound link each while /silver-price-today had 46 —
+ * they shipped after the library was written and were never added to it, so
+ * they were reachable only from the header, the footer and the homepage. Any
+ * new page belongs here as part of shipping it.
  */
 export const LINK_LIBRARY: Record<string, RelatedLink> = {
     home: {
@@ -187,6 +194,31 @@ export const LINK_LIBRARY: Record<string, RelatedLink> = {
         href: '/blog',
         label: 'Market analysis blog',
         description: 'Explainers on how precious metals are priced and what drives them.',
+    },
+    goldForecast: {
+        href: '/gold-price-forecast',
+        label: 'Gold price forecast',
+        description: 'A 7-day gold projection with 80% and 95% ranges, and its measured accuracy.',
+    },
+    silverForecast: {
+        href: '/silver-price-forecast',
+        label: 'Silver price forecast',
+        description: 'A 7-day silver projection with 80% and 95% ranges, and its measured accuracy.',
+    },
+    api: {
+        href: '/gold-price-api',
+        label: 'Free gold price API',
+        description: 'JSON spot prices and daily closes since 2000. No key, no rate limit, CORS on.',
+    },
+    platinum: {
+        href: '/platinum-price',
+        label: 'Platinum price',
+        description: 'Platinum spot price per ounce and gram, with what drives its demand.',
+    },
+    palladium: {
+        href: '/palladium-price',
+        label: 'Palladium price',
+        description: 'Palladium spot price per ounce and gram, and why it trades so far from gold.',
     },
 };
 

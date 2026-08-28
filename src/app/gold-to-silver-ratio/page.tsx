@@ -21,7 +21,7 @@ function ratioSeries(gold: { date: string; close: number }[], silver: { date: st
 }
 
 export const metadata = pageMetadata({
-    title: 'Gold to Silver Ratio Today — Live Chart and History',
+    title: 'Gold to Silver Ratio Today — Chart & History',
     description:
         'The live gold to silver ratio, how many ounces of silver buy one ounce of gold, with its recent range, historical average and what the ratio signals.',
     path: '/gold-to-silver-ratio',
@@ -174,7 +174,7 @@ export default async function GoldSilverRatioPage() {
             </section>
 
             <RelatedLinks
-                links={relatedLinks('goldToday', 'silverToday', 'goldArchive', 'silverArchive', 'calculator', 'history')}
+                links={relatedLinks('goldToday', 'silverToday', 'goldInsights', 'silverInsights', 'platinum', 'palladium')}
             />
         </>
     );

@@ -61,9 +61,8 @@ export async function generateMetadata({ params }: { params: Promise<{ coin: str
     return pageMetadata({
         title: `${coin.name} Melt Value${priceText}`,
         description:
-            `The current melt value of a ${coin.name}, based on its ${pureGrams(coin).toFixed(3)} g ` +
-            `of pure ${coin.metal} and live spot prices. Weight, fineness and how to tell it apart ` +
-            `from lookalikes.`,
+            `Melt value of a ${coin.name} from its ${pureGrams(coin).toFixed(3)} g of pure ` +
+            `${coin.metal} at live spot prices, with weight, fineness and lookalike checks.`,
         path: `/melt-value/${coin.slug}`,
         keywords: [
             `${coin.name} melt value`,
@@ -257,12 +256,13 @@ export default async function CoinMeltValuePage({
             <RelatedLinks
                 links={
                     coin.metal === 'gold'
-                        ? relatedLinks('calculator', 'goldToday', 'goldChart', 'goldArchive', 'ratio')
+                        ? relatedLinks('calculator', 'scrapCalculator', 'meltValue', 'goldToday', 'perGram', 'ratio')
                         : relatedLinks(
                               'silverCalculator',
+                              'meltValue',
                               'silverToday',
+                              'silverPerGram',
                               'silverChart',
-                              'silverArchive',
                               'ratio'
                           )
                 }

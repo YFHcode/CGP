@@ -42,9 +42,8 @@ export async function forecastMetadata(metal: MetalSymbol): Promise<Metadata> {
     return pageMetadata({
         title: `${route.name} Price Forecast — Next 7 Days`,
         description:
-            `A seven-day ${lower} price projection with 80% and 95% ranges, plus the measured ` +
-            `accuracy of that projection against a no-change benchmark. Updated daily. Not ` +
-            `financial advice.`,
+            `A seven-day ${lower} price projection with 80% and 95% ranges, plus its measured ` +
+            `accuracy against a no-change benchmark. Not financial advice.`,
         path: `/${lower}-price-forecast`,
         keywords: [
             `${lower} price forecast`,
@@ -292,7 +291,8 @@ export async function ForecastPage({ metal }: { metal: MetalSymbol }) {
                     metal === 'XAU' ? 'goldChart' : 'silverChart',
                     metal === 'XAU' ? 'goldInsights' : 'silverInsights',
                     metal === 'XAU' ? 'goldToday' : 'silverToday',
-                    'history',
+                    metal === 'XAU' ? 'silverForecast' : 'goldForecast',
+                    'api',
                     'ratio'
                 )}
             />

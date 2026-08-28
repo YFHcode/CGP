@@ -191,8 +191,8 @@ export default async function SilverPriceHistoryPage() {
                     'silverArchive',
                     'silverChart',
                     'silverInsights',
-                    'silverToday',
-                    'silverCalculator',
+                    'silverForecast',
+                    'silverPerGram',
                     'ratio'
                 )}
             />

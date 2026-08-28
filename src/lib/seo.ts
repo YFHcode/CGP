@@ -3,6 +3,14 @@ import { SITE_NAME, SITE_URL } from './navigation';
 
 export { SITE_NAME, SITE_URL };
 
+/**
+ * The generated social card at src/app/opengraph-image.tsx, referenced by URL.
+ * 1200x630 is the size that file declares and the one every major platform
+ * crops to.
+ */
+const OG_IMAGE = `${SITE_URL}/opengraph-image`;
+const OG_IMAGE_ALT = 'ChartGoldPrice — gold and silver price charts';
+
 interface PageMetaOptions {
     title: string;
     description: string;
@@ -47,12 +55,26 @@ export function pageMetadata({
             siteName: SITE_NAME,
             type,
             locale: 'en_US',
+            /**
+             * Stated explicitly rather than relying on inheritance.
+             *
+             * Next fills in a file-based opengraph-image automatically, but
+             * only for routes that do not declare `openGraph` themselves.
+             * Because this helper always declares one, every page that used it
+             * — which is every page except the homepage — silently shipped no
+             * og:image at all, so any link shared to Reddit, WhatsApp, Slack or
+             * X rendered as a bare grey box. `twitter.card` was set to
+             * `summary_large_image` all the while, promising an image that was
+             * never there.
+             */
+            images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: OG_IMAGE_ALT }],
             ...(publishedTime ? { publishedTime } : {}),
         },
         twitter: {
             card: 'summary_large_image',
             title: fullTitle,
             description,
+            images: [OG_IMAGE],
         },
     };
 }

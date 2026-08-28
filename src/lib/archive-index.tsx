@@ -128,11 +128,11 @@ export async function renderArchiveIndex(metal: MetalSymbol) {
             <RelatedLinks
                 links={relatedLinks(
                     metal === 'XAU' ? 'goldToday' : 'silverToday',
-                    metal === 'XAU' ? 'silverToday' : 'goldToday',
+                    metal === 'XAU' ? 'goldInsights' : 'silverInsights',
+                    metal === 'XAU' ? 'goldForecast' : 'silverForecast',
                     'calculator',
                     'history',
-                    'news',
-                    'blog'
+                    'news'
                 )}
             />
         </>

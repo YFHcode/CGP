@@ -14,6 +14,17 @@ import { periodFaqSchema } from '@/lib/period-faq';
 
 export const revalidate = 10800;
 
+/**
+ * Serve only the slugs generateStaticParams returns; anything else 404s at the
+ * routing layer.
+ *
+ * Without this, an unknown slug renders on demand and notFound() returns the
+ * not-found *body* with a 200 status — a soft 404, which Google reports in
+ * Search Console and spends crawl budget on. The valid set here is closed and
+ * fully known (the weight units we support), so nothing legitimate is lost.
+ */
+export const dynamicParams = false;
+
 export function generateStaticParams() {
     return UNIT_PAGES.map((page) => ({ unit: page.slug }));
 }
@@ -183,7 +194,7 @@ export default async function GoldPricePerUnitPage({
             </section>
 
             <RelatedLinks
-                links={relatedLinks('calculator', 'goldToday', 'goldArchive', 'silverToday', 'history', 'goldChart')}
+                links={relatedLinks('calculator', 'goldToday', 'scrapCalculator', 'goldUk', 'goldInInr', 'goldChart')}
             />
         </>
     );

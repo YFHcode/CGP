@@ -9,6 +9,7 @@ import { CurrencyValue } from '@/components/CurrencyValue';
 import { getPrices, getRates } from '@/lib/prices';
 import { GRAMS_PER_OZ, GOLD_HALLMARKS, GOLD_HALLMARK_PURITY, GOLD_HALLMARK_LABELS } from '@/lib/conversions';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
+import { regionalEnglishAlternates } from '@/lib/locale-pages';
 import { formatCurrency } from '@/lib/currencies';
 import { periodFaqSchema } from '@/lib/period-faq';
 
@@ -44,11 +45,11 @@ export async function generateMetadata() {
             : null;
     const priceText = gbpPerGram !== null ? ` — £${gbpPerGram.toFixed(2)}/g` : '';
 
-    return pageMetadata({
+    const base = pageMetadata({
         title: `Gold Price UK Today${priceText}`,
         description:
-            'Today’s UK gold price per gram and troy ounce in pounds sterling, with a full ' +
-            'hallmark purity table — 375 (9ct), 585 (14ct), 750 (18ct), 916 (22ct) and 999 fine.',
+            'UK gold price per gram and troy ounce in pounds, with a hallmark purity table — ' +
+            '375 (9ct), 585 (14ct), 750 (18ct), 916 (22ct) and 999 fine.',
         path: '/uk',
         keywords: [
             'gold price uk',
@@ -60,6 +61,14 @@ export async function generateMetadata() {
             'uk gold hallmark',
         ],
     });
+
+    // Declares /uk as the en-GB counterpart of /gold-price-today, so Google
+    // routes British searchers here and everyone else there, instead of the
+    // two competing for the same query.
+    return {
+        ...base,
+        alternates: { ...base.alternates, languages: regionalEnglishAlternates() },
+    };
 }
 
 export default async function UkGoldPricePage() {
@@ -269,10 +278,10 @@ export default async function UkGoldPricePage() {
                 links={relatedLinks(
                     'calculator',
                     'goldInGbp',
-                    'goldToday',
-                    'goldChart',
-                    'goldArchive',
-                    'goldInsights'
+                    'scrapCalculator',
+                    'meltValue',
+                    'perGram',
+                    'goldToday'
                 )}
             />
         </>
