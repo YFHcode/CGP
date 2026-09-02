@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-r
 
 import { LazyPriceChart } from './LazyPriceChart';
 import { Breadcrumbs } from './Breadcrumbs';
+import { HistoricalNotice } from './HistoricalNotice';
 import { RelatedLinks, relatedLinks } from './RelatedLinks';
 import { JsonLd } from './JsonLd';
 import { CurrencyValue, CurrencyCode } from './CurrencyValue';
@@ -81,6 +82,18 @@ export function PeriodPage({
     ];
     const pct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 
+    /**
+     * Whether this period is over.
+     *
+     * Compared against the newest date in the series rather than the wall
+     * clock: the page renders recorded data, so "has this period finished" is
+     * a question about the record, not about now. It also means today's own
+     * archive page — whose period end equals the latest close — never labels
+     * itself historical.
+     */
+    const latestDate = series.length > 0 ? series[series.length - 1].date : null;
+    const isHistorical = latestDate !== null && period.end < latestDate;
+
     const trail = [
         { name: `${route.name} price history`, href: route.base },
         ...(parent && period.kind === 'day'
@@ -118,6 +131,15 @@ export function PeriodPage({
             />
 
             <Breadcrumbs trail={trail} />
+
+            {isHistorical && (
+                <HistoricalNotice
+                    metalName={route.name}
+                    periodLabel={period.label}
+                    todayHref={metal === 'XAU' ? '/gold-price-today' : '/silver-price-today'}
+                    latestDate={latestDate}
+                />
+            )}
 
             <section className="bg-zinc-900/50 py-10">
                 <div className="container mx-auto px-4">

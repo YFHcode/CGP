@@ -9,17 +9,52 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
+import { formatLongDate, utcDateOf } from '@/lib/history-periods';
+import { formatCurrency } from '@/lib/currencies';
 
-export const metadata = pageMetadata({
-  title: 'Silver Price Today',
-  description:
-    "Today's silver price per troy ounce, gram and kilogram in USD, EUR, GBP and more. Day range, gold-to-silver ratio and historical silver charts.",
-  path: '/silver-price-today',
-  keywords: ['silver price today', 'silver rate today', 'live silver price', 'XAG USD', 'silver spot price'],
-});
+export const revalidate = 10800;
+
+/**
+ * Metadata carries the date the figures belong to.
+ *
+ * Same defect as the gold page, and worse here: date-qualified silver queries
+ * were being answered by /silver-price/2-september-2022 at position 5 — 188
+ * impressions, no clicks — because that title contained the date token and
+ * this one did not. The date comes from the snapshot rather than the clock, so
+ * a stalled refresh degrades the claim instead of overstating it.
+ */
+export async function generateMetadata() {
+  const { silver, updatedAt } = await getPrices();
+  const date = utcDateOf(updatedAt);
+  const dateText = date ? ` — ${formatLongDate(date)}` : '';
+  const priceText = silver ? ` is ${formatCurrency(silver.price, 'USD')} per troy ounce.` : '.';
+
+  return pageMetadata({
+    title: `Silver Price Today${dateText}`,
+    // Budgeted to stay under ~155 characters at the longest date, so the tail
+    // is never cut.
+    description:
+      `The silver price${date ? ` on ${formatLongDate(date)}` : ' today'}${priceText} ` +
+      'Per gram and kilogram rates in eight currencies, plus the gold-to-silver ratio.',
+    path: '/silver-price-today',
+    keywords: [
+      'silver price today',
+      'silver rate today',
+      'live silver price',
+      'XAG USD',
+      'silver spot price',
+    ],
+  });
+}
 
 export default async function SilverPriceTodayPage() {
   const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);
+
+  // Same date as the title, in the visible copy.
+  const date = utcDateOf(updatedAt);
+  const subheading = date
+    ? `The silver spot price on ${formatLongDate(date)}, per troy ounce, gram and kilogram, converted into eight currencies.`
+    : 'The current silver spot price per troy ounce, gram and kilogram, converted into eight currencies.';
 
   return (
     <>
@@ -31,7 +66,7 @@ export default async function SilverPriceTodayPage() {
         silverData={silver}
         updatedAt={updatedAt}
         heading="Silver Price Today"
-        subheading="The current silver spot price per troy ounce, gram and kilogram, converted into eight currencies."
+        subheading={subheading}
         metal="XAG"
       />
 
