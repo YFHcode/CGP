@@ -64,6 +64,26 @@ export function formatLongDate(iso: string): string {
 }
 
 /**
+ * The UTC calendar date of a snapshot timestamp, or null if there isn't one.
+ *
+ * Used by the "today" pages to state which day their figures belong to. It
+ * deliberately reads the snapshot rather than the server clock: the page is
+ * only entitled to claim the date of the data it is actually showing. If the
+ * refresh pipeline stalls, the date degrades to the last real one instead of
+ * asserting a freshness the numbers do not have.
+ *
+ * UTC because every other timestamp this site renders is UTC, and a local
+ * date would disagree with the "last updated" line beside it for several hours
+ * a day.
+ */
+export function utcDateOf(timestamp: string | null | undefined): string | null {
+    if (!timestamp) return null;
+    const ms = Date.parse(timestamp);
+    if (!Number.isFinite(ms)) return null;
+    return new Date(ms).toISOString().slice(0, 10);
+}
+
+/**
  * A month-and-year form ("Jan 2016") for title tags only.
  *
  * Titles are truncated by Google at roughly 60 characters, and a headline

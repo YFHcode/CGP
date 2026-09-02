@@ -297,3 +297,59 @@ test('getPeriodStats surfaces isComplete on the returned stats', () => {
     const finished = getPeriodStats(series, parsePeriod('2026-01'), '2026-02-01');
     assert.equal(finished.isComplete, true);
 });
+
+// --- utcDateOf and the historical-page rule ----------------------------------
+
+function utcDateOf(timestamp) {
+    if (!timestamp) return null;
+    const ms = Date.parse(timestamp);
+    if (!Number.isFinite(ms)) return null;
+    return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Mirrors the isHistorical predicate in src/components/PeriodPage.tsx. */
+const isHistorical = (periodEnd, latestDate) =>
+    latestDate !== null && periodEnd < latestDate;
+
+test('utcDateOf extracts the UTC calendar date from a snapshot timestamp', () => {
+    assert.equal(utcDateOf('2026-09-02T10:30:04.050Z'), '2026-09-02');
+    assert.equal(utcDateOf('2026-09-02T00:00:00.000Z'), '2026-09-02');
+});
+
+test('utcDateOf resolves an offset timestamp to the real UTC day', () => {
+    // 01:30 on the 3rd at +02:00 is still the 2nd in UTC. Getting this wrong
+    // would date the page a day ahead of the "last updated" line beside it.
+    assert.equal(utcDateOf('2026-09-03T01:30:00+02:00'), '2026-09-02');
+    // And the reverse across the other side of the line.
+    assert.equal(utcDateOf('2026-09-02T23:30:00-05:00'), '2026-09-03');
+});
+
+test('utcDateOf returns null rather than a wrong date for unusable input', () => {
+    // The today pages omit the date entirely on null, rather than falling back
+    // to the server clock and claiming a freshness the data lacks.
+    for (const bad of [null, undefined, '', 'not-a-date', 'yesterday']) {
+        assert.equal(utcDateOf(bad), null, `unexpected result for ${String(bad)}`);
+    }
+});
+
+test("today's own archive page is not labelled historical", () => {
+    // The boundary that matters: period.end === the newest close.
+    assert.equal(isHistorical('2026-09-02', '2026-09-02'), false);
+});
+
+test('a period that ended before the newest close is historical', () => {
+    assert.equal(isHistorical('2021-09-02', '2026-09-02'), true); // the day page
+    assert.equal(isHistorical('2026-08-31', '2026-09-02'), true); // last month
+    assert.equal(isHistorical('2025-12-31', '2026-09-02'), true); // last year
+});
+
+test('the current month and year are not historical while still running', () => {
+    // A month or year page whose end date is in the future has not finished,
+    // so it must not tell the reader it is a historical record.
+    assert.equal(isHistorical('2026-09-30', '2026-09-02'), false);
+    assert.equal(isHistorical('2026-12-31', '2026-09-02'), false);
+});
+
+test('an empty series never labels anything historical', () => {
+    assert.equal(isHistorical('2021-09-02', null), false);
+});

@@ -10,33 +10,73 @@ import { RelatedLinks, relatedLinks } from '@/components/RelatedLinks';
 import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { regionalEnglishAlternates } from '@/lib/locale-pages';
+import { formatLongDate, utcDateOf } from '@/lib/history-periods';
+import { formatCurrency } from '@/lib/currencies';
 import type { Metadata } from 'next';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 
-const baseMetadata = pageMetadata({
-  title: 'Gold Price Today',
-  description:
-    "Today's gold price per troy ounce, gram and kilogram in USD, EUR, GBP and more. Day range, change versus previous close and historical gold charts.",
-  path: '/gold-price-today',
-  keywords: ['gold price today', 'gold rate today', 'live gold price', 'current gold price', 'XAU USD'],
-});
+export const revalidate = 10800;
 
 /**
- * Declares /uk as this page's en-GB counterpart.
+ * Metadata carries the date the figures belong to.
  *
- * Both answer "gold price today"; this one in dollars for a general audience,
- * /uk in sterling with hallmark purities for British searchers. Without the
- * pair being declared, Google sees two pages competing for one intent rather
- * than one cluster to route by region. Neither page carried any hreflang
- * before.
+ * Search Console showed date-qualified queries ("gold price today september 2
+ * spot gold usd ounce") being answered by /gold-price/2-september-2021 at
+ * position 8 — 287 impressions, no clicks — while this page, the correct
+ * answer, took none at all. The archive page won because its title contains
+ * the date token and this page's title did not. Nobody clicks a five-year-old
+ * archive page when they asked for today, so those impressions were dead on
+ * arrival.
+ *
+ * The date comes from the snapshot, not the clock, so a stalled refresh
+ * degrades the claim instead of overstating it. See utcDateOf.
  */
-export const metadata: Metadata = {
-  ...baseMetadata,
-  alternates: { ...baseMetadata.alternates, languages: regionalEnglishAlternates() },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { gold, updatedAt } = await getPrices();
+  const date = utcDateOf(updatedAt);
+  const dateText = date ? ` — ${formatLongDate(date)}` : '';
+  const priceText = gold ? ` is ${formatCurrency(gold.price, 'USD')} per troy ounce.` : '.';
+
+  const base = pageMetadata({
+    title: `Gold Price Today${dateText}`,
+    // Budgeted to stay under ~155 characters at the longest date ("30
+    // September 2026") and a five-figure price, so the tail is never cut.
+    description:
+      `The gold price${date ? ` on ${formatLongDate(date)}` : ' today'}${priceText} ` +
+      'Per gram, kilogram and tola rates in eight currencies, with the day range and change.',
+    path: '/gold-price-today',
+    keywords: [
+      'gold price today',
+      'gold rate today',
+      'live gold price',
+      'current gold price',
+      'XAU USD',
+    ],
+  });
+
+  /**
+   * Declares /uk as this page's en-GB counterpart.
+   *
+   * Both answer "gold price today"; this one in dollars for a general
+   * audience, /uk in sterling with hallmark purities for British searchers.
+   * Without the pair being declared, Google sees two pages competing for one
+   * intent rather than one cluster to route by region.
+   */
+  return {
+    ...base,
+    alternates: { ...base.alternates, languages: regionalEnglishAlternates() },
+  };
+}
 
 export default async function GoldPriceTodayPage() {
   const [{ gold, silver, updatedAt }, history] = await Promise.all([getPrices(), getHistory()]);
+
+  // Same date as the title, in the visible copy, so the page body backs up
+  // what the title claims rather than leaving the date only in metadata.
+  const date = utcDateOf(updatedAt);
+  const subheading = date
+    ? `The gold spot price on ${formatLongDate(date)}, per troy ounce, gram and kilogram, converted into eight currencies.`
+    : 'The current gold spot price per troy ounce, gram and kilogram, converted into eight currencies.';
 
   return (
     <>
@@ -48,7 +88,7 @@ export default async function GoldPriceTodayPage() {
         silverData={silver}
         updatedAt={updatedAt}
         heading="Gold Price Today"
-        subheading="The current gold spot price per troy ounce, gram and kilogram, converted into eight currencies."
+        subheading={subheading}
         metal="XAU"
       />
 
