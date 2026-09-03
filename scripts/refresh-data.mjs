@@ -194,14 +194,41 @@ export function collectExchangeRates(entries) {
  * This is what keeps the backfill from re-fetching the whole archive twice a
  * day forever: once a year has been filled in it stops being sparse, so steady
  * state is one or two windows per run instead of fourteen.
+ *
+ * The year total alone is not enough, and believing it was cost us a year of
+ * data. 2024 held 112 points — comfortably over minPerYear — so it was never
+ * backfilled, but those 112 were six monthly stamps for January to July and
+ * daily closes only from August, the month the original series began. A year
+ * that is half-monthly and half-daily passes a whole-year density test while
+ * being exactly what this function exists to catch.
+ *
+ * So a year is also sparse when any complete month inside it is too thin to be
+ * daily. The series' own first and last months are exempt: both are partial by
+ * definition, and flagging them would make the backfill re-fetch the current
+ * month on every run forever.
  */
-export function sparseYears(points, { minPerYear = 100, startYear = 1990, endYear } = {}) {
+export function sparseYears(
+    points,
+    { minPerYear = 100, minPerMonth = 10, startYear = 1990, endYear } = {}
+) {
     const last = endYear ?? new Date().getUTCFullYear();
     const counts = new Map();
+    const monthCounts = new Map();
+    let firstDate = null;
+    let lastDate = null;
+
     for (const point of Array.isArray(points) ? points : []) {
-        const year = Number(String(point?.date ?? '').slice(0, 4));
+        const date = String(point?.date ?? '');
+        const year = Number(date.slice(0, 4));
         if (!Number.isInteger(year)) continue;
         counts.set(year, (counts.get(year) ?? 0) + 1);
+
+        const month = date.slice(0, 7);
+        if (/^\d{4}-\d{2}$/.test(month)) {
+            monthCounts.set(month, (monthCounts.get(month) ?? 0) + 1);
+            if (firstDate === null || date < firstDate) firstDate = date;
+            if (lastDate === null || date > lastDate) lastDate = date;
+        }
     }
 
     // Only consider years the series actually reaches into: backfilling years
@@ -210,9 +237,47 @@ export function sparseYears(points, { minPerYear = 100, startYear = 1990, endYea
     const first = known.length > 0 ? Math.min(...known) : last;
     const from = Math.max(startYear, first);
 
+    const firstMonth = firstDate?.slice(0, 7) ?? null;
+    const lastMonth = lastDate?.slice(0, 7) ?? null;
+
+    /** True when any complete month of this year is too thin to be daily. */
+    const hasThinMonth = (year) => {
+        for (let m = 1; m <= 12; m++) {
+            const key = `${year}-${String(m).padStart(2, '0')}`;
+            // Outside the covered range, or a partial month at either edge.
+            if (firstMonth === null || key < firstMonth || key > lastMonth) continue;
+            if (key === firstMonth || key === lastMonth) continue;
+            if ((monthCounts.get(key) ?? 0) < minPerMonth) return true;
+        }
+        return false;
+    };
+
+    /**
+     * The year total to require, prorated across the part of the year the
+     * series actually covers.
+     *
+     * Without this the series' first year is sparse forever: ours begins on 30
+     * August 2000, so that year can only ever hold about 84 points and a flat
+     * threshold of 100 re-fetches it on every run, for data that does not
+     * exist. The same applies to the current year each January. The per-month
+     * check above remains the real safety net, so proration cannot hide a year
+     * that is genuinely monthly.
+     */
+    const requiredFor = (year) => {
+        if (firstDate === null) return minPerYear;
+        const startsAt = year === Number(firstDate.slice(0, 4)) ? firstDate : `${year}-01-01`;
+        const endsAt = year === Number(lastDate.slice(0, 4)) ? lastDate : `${year}-12-31`;
+        if (startsAt === `${year}-01-01` && endsAt === `${year}-12-31`) return minPerYear;
+
+        const dayOfYear = (iso) =>
+            Math.round((Date.parse(iso) - Date.parse(`${iso.slice(0, 4)}-01-01`)) / 86_400_000);
+        const covered = Math.max(1, dayOfYear(endsAt) - dayOfYear(startsAt) + 1);
+        return Math.ceil((minPerYear * covered) / 365);
+    };
+
     const sparse = [];
     for (let year = from; year <= last; year++) {
-        if ((counts.get(year) ?? 0) < minPerYear) sparse.push(year);
+        if ((counts.get(year) ?? 0) < requiredFor(year) || hasThinMonth(year)) sparse.push(year);
     }
     return sparse;
 }

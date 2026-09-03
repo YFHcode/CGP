@@ -464,6 +464,73 @@ test('sparseYears treats an empty or unparseable series as needing the current y
     }
 });
 
+/** Daily from `fromMonth` onward, one point a month before it — the 2024 shape. */
+const halfMonthlyYear = (year, fromMonth) => {
+    const pts = [];
+    for (let m = 1; m < fromMonth; m++) {
+        pts.push({ date: `${year}-${String(m).padStart(2, '0')}-15`, close: 100 });
+    }
+    const d = new Date(Date.UTC(year, fromMonth - 1, 1));
+    while (d.getUTCFullYear() === year) {
+        if (d.getUTCDay() % 6 !== 0) pts.push({ date: d.toISOString().slice(0, 10), close: 100 });
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return pts;
+};
+
+test('a year that is monthly for half of it is sparse despite clearing the year total', () => {
+    // The defect this guards. Our 2024 held 112 points — over minPerYear — but
+    // they were six monthly stamps for January to July and daily closes only
+    // from August. The year total said dense; seven months of the year were
+    // one point each, and the backfill skipped them for months.
+    const y2024 = halfMonthlyYear(2024, 8);
+    assert.ok(y2024.length > 100, `fixture should clear minPerYear, got ${y2024.length}`);
+
+    const points = [...dailyYear(2023), ...y2024, ...dailyYear(2025)];
+    assert.deepEqual(sparseYears(points, { endYear: 2025 }), [2024]);
+});
+
+test('a single thin month is enough to flag its year', () => {
+    // Platinum had years totalling 215 points with a 3-point November inside
+    // them. A whole-year test cannot see that.
+    const full = dailyYear(2005);
+    const thinned = full.filter((p) => !p.date.startsWith('2005-11') || p.date < '2005-11-05');
+    assert.ok(thinned.length > 200, 'the year should still clear the year total');
+
+    const points = [...dailyYear(2004), ...thinned, ...dailyYear(2006)];
+    assert.deepEqual(sparseYears(points, { endYear: 2006 }), [2005]);
+});
+
+test("the series' own first and last months are exempt from the month check", () => {
+    // Both are partial by definition. Flagging the last one would make the
+    // backfill re-fetch the current month on every run, forever.
+    const full = dailyYear(2021);
+    const partial = full.filter((p) => p.date >= '2021-01-28' && p.date <= '2021-12-03');
+    assert.deepEqual(sparseYears(partial, { endYear: 2021 }), []);
+});
+
+test("the series' opening year is prorated rather than compared to a full year", () => {
+    // Ours begins on 30 August 2000, so that year can only ever hold ~84
+    // points. A flat threshold makes it sparse forever and re-fetches data
+    // that does not exist — the opposite of what this function is for.
+    const opening = dailyYear(2000).filter((p) => p.date >= '2000-08-30');
+    assert.ok(opening.length < 100, `fixture should be under minPerYear, got ${opening.length}`);
+
+    const points = [...opening, ...dailyYear(2001)];
+    assert.deepEqual(sparseYears(points, { endYear: 2001 }), []);
+});
+
+test('proration cannot rescue an opening year that is genuinely monthly', () => {
+    // The month check still applies, so a partial first year made of monthly
+    // stamps is still caught.
+    const points = [
+        ...['2000-02-15', '2000-03-15', '2000-04-15', '2000-05-15', '2000-06-15', '2000-07-15']
+            .map((date) => ({ date, close: 100 })),
+        ...dailyYear(2001),
+    ];
+    assert.deepEqual(sparseYears(points, { endYear: 2001 }), [2000]);
+});
+
 test('windowsForYears merges consecutive years up to the window width', () => {
     assert.deepEqual(windowsForYears([2000, 2001, 2002, 2003], 2), [
         { start: 2000, end: 2001 },
