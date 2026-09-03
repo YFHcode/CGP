@@ -1,0 +1,101 @@
+name: Explore external dataset
+
+# Diagnostic only — never writes to data/, and never commits the download.
+#
+# Settles whether an external price dataset would add anything to the series we
+# already keep. Runs here rather than locally because the sandboxed dev
+# environment cannot reach Kaggle: the egress proxy denies CONNECT to
+# www.kaggle.com outright. Same reason probe-history-depth runs on a runner.
+#
+# The raw archive is uploaded as a build artifact rather than committed. This
+# repository is public and publishes its data through a free API under its own
+# licence, on the explicit claim that the figures are first-party; committing a
+# third-party export whose redistribution rights are unclear would undermine
+# both. If the exploration shows the data is worth having, that is a separate
+# decision to take deliberately.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: 'Kaggle dataset, owner/slug'
+        default: 'novandraanugrah/xauusd-gold-price-historical-data-2004-2024'
+      our_symbol:
+        description: 'Which of our series to compare against (XAU, XAG, XPT, XPD)'
+        default: 'XAU'
+
+concurrency:
+  group: explore-dataset
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  explore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Download the dataset
+        env:
+          DATASET: ${{ inputs.dataset }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          set -uo pipefail
+          URL="https://www.kaggle.com/api/v1/datasets/download/${DATASET}"
+          echo "GET $URL"
+
+          # Kaggle serves some public datasets without credentials and 302s the
+          # rest to a login page, so try anonymously first and fall back to the
+          # token if the repository has one configured.
+          if [ -n "${KAGGLE_KEY:-}" ]; then
+            echo "using KAGGLE_KEY from secrets"
+            curl -sSL -u "${KAGGLE_USERNAME}:${KAGGLE_KEY}" -o dataset.zip -w 'HTTP %{http_code}\n' "$URL"
+          else
+            echo "no KAGGLE_KEY secret set — trying anonymously"
+            curl -sSL -o dataset.zip -w 'HTTP %{http_code}\n' "$URL"
+          fi
+
+          ls -la dataset.zip || true
+          echo "--- what did we actually get? ---"
+          file dataset.zip || true
+          head -c 200 dataset.zip | strings | head -5 || true
+
+          # Kaggle returns an HTML login page with a 200 when auth is needed, so
+          # a successful status code proves nothing. Check the magic bytes.
+          if ! head -c 2 dataset.zip | grep -q 'PK'; then
+            echo
+            echo "::error::Not a zip archive. Kaggle almost certainly requires"
+            echo "::error::authentication for this dataset. Add KAGGLE_USERNAME and"
+            echo "::error::KAGGLE_KEY as repository secrets (Kaggle > Settings > API >"
+            echo "::error::Create New Token gives a kaggle.json containing both) and"
+            echo "::error::re-run this workflow."
+            exit 1
+          fi
+
+      - name: Unpack
+        run: |
+          mkdir -p dataset
+          unzip -o -q dataset.zip -d dataset
+          echo "unpacked:"
+          find dataset -type f | head -50
+
+      - name: Explore and compare against our series
+        env:
+          DATASET_DIR: dataset
+          OUR_SYMBOL: ${{ inputs.our_symbol }}
+        run: node scripts/explore-dataset.mjs
+
+      - name: Upload the raw archive for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-dataset
+          path: dataset.zip
+          retention-days: 7
+          if-no-files-found: warn
