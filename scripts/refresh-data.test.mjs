@@ -697,35 +697,52 @@ test('dropSpikes leaves short and malformed series alone', () => {
 
 // --- isSourceExhausted -------------------------------------------------------
 
-test('a window that returns only dates we already hold is exhausted', () => {
+const day = (date, close = 100) => ({ date, close });
+
+test('a window returning only sessions we already hold is exhausted', () => {
     // Yahoo carries about 130 sessions a year for PL=F before 2010; those
     // contracts were thinly traded and the record is genuinely incomplete. The
     // year can never satisfy a density test, so without this it would be
     // re-requested twice a day for as long as the site exists.
-    const have = new Set(['2006-01-03', '2006-01-04']);
-    const fetched = [{ date: '2006-01-03' }, { date: '2006-01-04' }];
-    assert.equal(isSourceExhausted(fetched, have), true);
+    const existing = [day('2006-01-03'), day('2006-01-04'), day('2006-01-05')];
+    assert.equal(isSourceExhausted(existing, [day('2006-01-03'), day('2006-01-04')]), true);
 });
 
-test('a single new date is enough to keep a window eligible', () => {
-    const have = new Set(['2006-01-03']);
-    assert.equal(isSourceExhausted([{ date: '2006-01-03' }, { date: '2006-01-05' }], have), false);
+test('one genuinely new session keeps a window eligible', () => {
+    const existing = [day('2006-01-03'), day('2006-01-04')];
+    assert.equal(isSourceExhausted(existing, [day('2006-01-05')]), false);
+});
+
+test('a session the cleaning always discards does not keep a window alive forever', () => {
+    // The failure this guards, and the reason exhaustion is judged by running
+    // the real merge rather than by comparing raw dates. mergeSeries drops
+    // weekend-dated closes, so such a point is never in the stored series. A
+    // date comparison would call it new on every single run and the window
+    // would never converge — the mechanism would add state and cost while
+    // achieving nothing.
+    const existing = [day('2006-01-05'), day('2006-01-06')];
+    const saturday = '2006-01-07';
+    assert.equal(new Date(saturday + 'T00:00:00Z').getUTCDay(), 6, 'fixture must be a Saturday');
+    assert.equal(isSourceExhausted(existing, [day('2006-01-06'), day(saturday)]), true);
 });
 
 test('an empty response is a transient miss, not an exhausted source', () => {
     // The distinction that matters. One failed fetch must never permanently
     // abandon a decade of backfill.
-    assert.equal(isSourceExhausted([], new Set(['2006-01-03'])), false);
-    assert.equal(isSourceExhausted(null, new Set(['2006-01-03'])), false);
-    assert.equal(isSourceExhausted(undefined, new Set()), false);
+    const existing = [day('2006-01-03')];
+    assert.equal(isSourceExhausted(existing, []), false);
+    assert.equal(isSourceExhausted(existing, null), false);
+    assert.equal(isSourceExhausted(existing, undefined), false);
 });
 
-test('isSourceExhausted accepts an array of dates as well as a Set', () => {
-    assert.equal(isSourceExhausted([{ date: '2006-01-03' }], ['2006-01-03']), true);
-    assert.equal(isSourceExhausted([{ date: '2006-01-03' }], []), false);
+test('an empty stored series is never treated as exhausted', () => {
+    assert.equal(isSourceExhausted([], [day('2006-01-03')]), false);
+    assert.equal(isSourceExhausted(undefined, [day('2006-01-03')]), false);
 });
 
-test('a malformed point is treated as new rather than silently exhausting', () => {
+test('a malformed point cannot exhaust a window on its own', () => {
     // Erring toward one more fetch is cheap; erring toward abandonment is not.
-    assert.equal(isSourceExhausted([{ date: undefined }], new Set(['2006-01-03'])), false);
+    const existing = [day('2006-01-03')];
+    assert.equal(isSourceExhausted(existing, [{ date: '2006-01-04', close: 'nope' }]), true);
+    assert.equal(isSourceExhausted(existing, [day('2006-01-04')]), false);
 });
