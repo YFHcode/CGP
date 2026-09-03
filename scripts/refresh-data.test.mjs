@@ -14,6 +14,7 @@ import {
     dropNonTradingDays,
     dropSpikes,
     sparseYears,
+    isSourceExhausted,
     windowsForYears,
 } from './refresh-data.mjs';
 
@@ -692,4 +693,39 @@ test('dropSpikes leaves short and malformed series alone', () => {
         3,
         'a non-positive close cannot be judged and is left for the caller to drop'
     );
+});
+
+// --- isSourceExhausted -------------------------------------------------------
+
+test('a window that returns only dates we already hold is exhausted', () => {
+    // Yahoo carries about 130 sessions a year for PL=F before 2010; those
+    // contracts were thinly traded and the record is genuinely incomplete. The
+    // year can never satisfy a density test, so without this it would be
+    // re-requested twice a day for as long as the site exists.
+    const have = new Set(['2006-01-03', '2006-01-04']);
+    const fetched = [{ date: '2006-01-03' }, { date: '2006-01-04' }];
+    assert.equal(isSourceExhausted(fetched, have), true);
+});
+
+test('a single new date is enough to keep a window eligible', () => {
+    const have = new Set(['2006-01-03']);
+    assert.equal(isSourceExhausted([{ date: '2006-01-03' }, { date: '2006-01-05' }], have), false);
+});
+
+test('an empty response is a transient miss, not an exhausted source', () => {
+    // The distinction that matters. One failed fetch must never permanently
+    // abandon a decade of backfill.
+    assert.equal(isSourceExhausted([], new Set(['2006-01-03'])), false);
+    assert.equal(isSourceExhausted(null, new Set(['2006-01-03'])), false);
+    assert.equal(isSourceExhausted(undefined, new Set()), false);
+});
+
+test('isSourceExhausted accepts an array of dates as well as a Set', () => {
+    assert.equal(isSourceExhausted([{ date: '2006-01-03' }], ['2006-01-03']), true);
+    assert.equal(isSourceExhausted([{ date: '2006-01-03' }], []), false);
+});
+
+test('a malformed point is treated as new rather than silently exhausting', () => {
+    // Erring toward one more fetch is cheap; erring toward abandonment is not.
+    assert.equal(isSourceExhausted([{ date: undefined }], new Set(['2006-01-03'])), false);
 });

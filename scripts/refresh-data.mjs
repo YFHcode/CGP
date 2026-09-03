@@ -735,15 +735,41 @@ async function fetchYahooHistory(symbol, yahooSymbol) {
  * rather than aborting the run: a partial backfill still improves the series,
  * and mergeSeries is additive so the next run retries whatever is still thin.
  */
-async function backfillYahooHistory(symbol, yahooSymbol, existing) {
-    const years = sparseYears(existing, { startYear: YAHOO_BACKFILL_START_YEAR });
-    if (years.length === 0) return [];
+/**
+ * Whether a backfill window has reached the limit of what the source holds.
+ *
+ * True only when the response was successful, non-empty, and contained not one
+ * date we did not already have. An empty response means the fetch told us
+ * nothing — a transient outage or a bad window — and must leave the years
+ * eligible, or one bad afternoon would permanently abandon a decade.
+ */
+export function isSourceExhausted(fetchedPoints, haveDates) {
+    if (!Array.isArray(fetchedPoints) || fetchedPoints.length === 0) return false;
+    const have = haveDates instanceof Set ? haveDates : new Set(haveDates ?? []);
+    return fetchedPoints.every((point) => have.has(point?.date));
+}
+
+/**
+ * @param {number[]} exhausted Years the source has already been shown not to
+ *   hold in full. Skipped, so the backfill converges instead of asking for the
+ *   same missing sessions twice a day forever.
+ */
+async function backfillYahooHistory(symbol, yahooSymbol, existing, exhausted = []) {
+    const skip = new Set(exhausted);
+    const years = sparseYears(existing, { startYear: YAHOO_BACKFILL_START_YEAR }).filter(
+        (year) => !skip.has(year)
+    );
+    if (years.length === 0) return { points: [], exhausted: [] };
 
     const windows = windowsForYears(years, YAHOO_BACKFILL_WINDOW_YEARS);
     console.log(
         `[refresh] ${symbol}: ${years.length} sparse year(s), backfilling in ${windows.length} window(s)`
     );
 
+    // What we already hold, so a window that returns nothing new can be
+    // recognised as the source's limit rather than a transient miss.
+    const haveDates = new Set(existing.map((point) => point.date));
+    const newlyExhausted = [];
     const collected = [];
     for (const window of windows) {
         // Inclusive of the whole end year.
@@ -765,6 +791,28 @@ async function backfillYahooHistory(symbol, yahooSymbol, existing) {
             console.log(
                 `[refresh] ${symbol} backfill ${window.start}-${window.end}: ${points.length} pts`
             );
+
+            /**
+             * A window that answered with real data but taught us nothing new
+             * has reached what the source holds, not what the market traded.
+             * Yahoo carries roughly 130 sessions a year for PL=F and PA=F
+             * before about 2010 — those contracts were thinly traded and the
+             * record is genuinely incomplete — so those years can never
+             * satisfy a density test and would otherwise be re-requested on
+             * every run for as long as the site exists.
+             *
+             * Only a successful, non-empty response counts. A failed fetch or
+             * an empty one leaves the years eligible, so a transient outage
+             * never gets mistaken for a permanent gap.
+             */
+            if (isSourceExhausted(points, haveDates)) {
+                for (let year = window.start; year <= window.end; year++) {
+                    newlyExhausted.push(year);
+                }
+                console.log(
+                    `[refresh] ${symbol} ${window.start}-${window.end}: source holds nothing further, not retrying`
+                );
+            }
         } catch (error) {
             console.warn(
                 `[refresh] ${symbol} backfill ${window.start}-${window.end} failed: ${error.message ?? error}`
@@ -774,7 +822,7 @@ async function backfillYahooHistory(symbol, yahooSymbol, existing) {
         await new Promise((resolve) => setTimeout(resolve, 400));
     }
 
-    return collected;
+    return { points: collected, exhausted: newlyExhausted };
 }
 
 async function fetchStooqHistory(symbol) {
@@ -794,7 +842,7 @@ async function fetchStooqHistory(symbol) {
  * Tries each history provider in order and returns the first that yields data.
  * Ordered by data quality: Yahoo spot, Yahoo futures, then Stooq.
  */
-async function fetchHistory(symbol, existing = []) {
+async function fetchHistory(symbol, existing = [], alreadyExhausted = []) {
     const attempts = [
         ...YAHOO_SYMBOLS[symbol].map((y) => () => fetchYahooHistory(symbol, y)),
         () => fetchStooqHistory(symbol),
@@ -815,13 +863,20 @@ async function fetchHistory(symbol, existing = []) {
                 // year already dense in the stored file isn't re-fetched just
                 // because this response didn't include it.
                 const combined = mergeSeries(existing, result.points, MAX_HISTORY_POINTS);
-                const filled = await backfillYahooHistory(symbol, yahooSymbol, combined);
+                const { points: filled, exhausted } = await backfillYahooHistory(
+                    symbol,
+                    yahooSymbol,
+                    combined,
+                    alreadyExhausted
+                );
                 if (filled.length > 0) {
                     return {
                         points: mergeSeries(result.points, filled, MAX_HISTORY_POINTS),
                         source: result.source,
+                        exhausted,
                     };
                 }
+                return { ...result, exhausted };
             }
 
             return result;
@@ -932,7 +987,12 @@ async function main() {
     await mkdir(DATA_DIR, { recursive: true });
 
     const prices = await readJson(PRICES_FILE, { updatedAt: null, metals: {} });
-    const history = await readJson(HISTORY_FILE, { updatedAt: null, source: null, series: {} });
+    const history = await readJson(HISTORY_FILE, {
+        updatedAt: null,
+        source: null,
+        series: {},
+        backfillExhausted: {},
+    });
     const newsArchive = await readJson(NEWS_FILE, { updatedAt: null, items: [] });
     const rates = await readJson(RATES_FILE, { updatedAt: null, base: 'USD', rates: {} });
 
@@ -960,10 +1020,31 @@ async function main() {
         // --- Historical series ------------------------------------------
         try {
             // The stored series is passed in so the backfill can tell which
-            // years are already dense and skip them.
-            const { points, source } = await fetchHistory(symbol, history.series[symbol] ?? []);
+            // years are already dense and skip them, along with the years the
+            // source has already been shown not to hold.
+            history.backfillExhausted ??= {};
+            const { points, source, exhausted } = await fetchHistory(
+                symbol,
+                history.series[symbol] ?? [],
+                history.backfillExhausted[symbol] ?? []
+            );
             history.series[symbol] = mergeSeries(history.series[symbol], points);
             history.source = source;
+
+            if (exhausted?.length) {
+                const merged = new Set([
+                    ...(history.backfillExhausted[symbol] ?? []),
+                    ...exhausted,
+                ]);
+                // Drop any year that is no longer sparse, so a year filled in
+                // by some other route stops being remembered as a dead end.
+                const stillSparse = new Set(
+                    sparseYears(history.series[symbol], { startYear: YAHOO_BACKFILL_START_YEAR })
+                );
+                history.backfillExhausted[symbol] = [...merged]
+                    .filter((year) => stillSparse.has(year))
+                    .sort((a, b) => a - b);
+            }
             historyChanged = true;
             console.log(
                 `[refresh] ${symbol} history = ${history.series[symbol].length} points (via ${source})`
