@@ -1,6 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { PeriodPage } from '@/components/PeriodPage';
+import { ClosedDayPage } from '@/components/ClosedDayPage';
+import { describeClosedDay, closureSentence } from '@/lib/closed-days';
 import { getHistory } from '@/lib/prices';
 import {
     METAL_ROUTES,
@@ -62,6 +64,32 @@ export async function periodMetadata(metal: MetalSymbol, periodSlug: string) {
     const stats = getPeriodStats(seriesFor(metal, history), period);
 
     if (!stats) {
+        /**
+         * A weekend or a session the market did not settle, inside the range we
+         * cover. These used to fall through to notFound(), which Next then
+         * prerendered and served as HTTP 200 with a "Page not found" body —
+         * about six thousand soft 404s under real-looking titles.
+         *
+         * noIndex, follow is deliberate and not a hedge. Six thousand pages
+         * sharing one structure is the scaled-content pattern to avoid, and a
+         * date with no price has nothing of its own to rank for. The page
+         * exists for whoever lands on it, and so link equity reaches the two
+         * real sessions either side.
+         */
+        const closed =
+            period.kind === 'day'
+                ? describeClosedDay(seriesFor(metal, history), period.key)
+                : null;
+
+        if (closed) {
+            return pageMetadata({
+                title: `${route.name} Price on ${period.label} — Market Closed`,
+                description: closureSentence(closed, route.name).slice(0, 155),
+                path: `${route.base}/${period.slug}`,
+                noIndex: true,
+            });
+        }
+
         return pageMetadata({
             title: `${route.name} price, ${period.label}`,
             description: 'No price data is available for this period.',
@@ -164,8 +192,25 @@ export async function renderPeriodPage(metal: MetalSymbol, periodSlug: string) {
     const series = seriesFor(metal, history);
     const stats = getPeriodStats(series, period);
 
-    // A period with no data must 404 rather than publish an empty page.
-    if (!stats) notFound();
+    // A day inside our range with no close is a weekend or a market holiday,
+    // not a missing page. Answer the question instead of 404ing it.
+    if (!stats) {
+        const closed =
+            period.kind === 'day' ? describeClosedDay(series, period.key) : null;
+        if (closed) {
+            return (
+                <ClosedDayPage
+                    metal={metal}
+                    period={period}
+                    closed={closed}
+                    routeBase={METAL_ROUTES[metal].base}
+                    metalName={METAL_ROUTES[metal].name}
+                />
+            );
+        }
+        // Genuinely outside the range we hold, so genuinely not found.
+        notFound();
+    }
 
     return (
         <PeriodPage

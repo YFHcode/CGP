@@ -59,7 +59,32 @@ import type { HistoryPoint } from "@/types";
  * promotion; the milestone timeline was, which is why only that one was
  * reconciled.
  */
-const ARCHIVE_DAY_FROM = process.env.ARCHIVE_DAY_FROM || "2024-08-01";
+/**
+ * Every day page is now advertised, reversing the bands described above.
+ *
+ * Those bands were set on the assumption that a young domain would drown if
+ * given twelve thousand dated URLs at once. Search Console says the opposite,
+ * and specifically for this page type. Over 24 hours the archive day pages
+ * averaged position 13.4 and the current-year ones 7.5, while "other pages"
+ * averaged 49.3 and human-typed queries overall 52.2. The position-51+ problem
+ * that motivated the bands was never these pages; they are the best-ranking
+ * page type on the site.
+ *
+ * Worse, the bands were costing rankings we had already won. The two
+ * highest-impression pages in that export — /gold-price/2-september-2021 at
+ * position 8 with 287 impressions, and /silver-price/2-september-2022 at
+ * position 5 with 188 — are both from years the bands excluded. They were only
+ * indexed because the milestone timeline happened to link them. And a search
+ * for "gold price 6 may 2010" returns this site third with the *month* page,
+ * because 6 May 2010 is a real Thursday session whose day page exists, renders
+ * the correct $1,196.90, and was simply never listed.
+ *
+ * So the default lists everything. ARCHIVE_DAY_FROM and ARCHIVE_DAY_YEARS
+ * still narrow it, which is why they were made env-overridable in the first
+ * place: if indexation stalls — day-page impressions rising while average
+ * position drifts past 30 — this can be tightened again without a deploy.
+ */
+const ARCHIVE_DAY_FROM = process.env.ARCHIVE_DAY_FROM || "0000-01-01";
 
 const ARCHIVE_DAY_YEARS = new Set(
   (process.env.ARCHIVE_DAY_YEARS || "2005,2008,2011,2012,2016,2019,2020")
