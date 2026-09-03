@@ -738,15 +738,23 @@ async function fetchYahooHistory(symbol, yahooSymbol) {
 /**
  * Whether a backfill window has reached the limit of what the source holds.
  *
- * True only when the response was successful, non-empty, and contained not one
- * date we did not already have. An empty response means the fetch told us
- * nothing — a transient outage or a bad window — and must leave the years
- * eligible, or one bad afternoon would permanently abandon a decade.
+ * Asks the only question that matters: would merging this response change the
+ * stored series at all? Judging it by comparing raw fetched dates against
+ * stored ones looks equivalent and is not, because mergeSeries cleans what it
+ * merges — dropNonTradingDays and dropSpikes both discard points. Anything the
+ * cleaning removes is never in the stored series, so a weekend-dated close
+ * that Yahoo returns every time would read as "new" on every run and the
+ * window would never converge. Running the real merge cannot drift from the
+ * real pipeline, because it is the real pipeline.
+ *
+ * An empty or unusable response means the fetch told us nothing — a transient
+ * outage, a bad window — and must leave the years eligible. One bad afternoon
+ * must not permanently abandon a decade of backfill.
  */
-export function isSourceExhausted(fetchedPoints, haveDates) {
+export function isSourceExhausted(existing, fetchedPoints, merge = mergeSeries) {
     if (!Array.isArray(fetchedPoints) || fetchedPoints.length === 0) return false;
-    const have = haveDates instanceof Set ? haveDates : new Set(haveDates ?? []);
-    return fetchedPoints.every((point) => have.has(point?.date));
+    const base = Array.isArray(existing) ? existing : [];
+    return merge(base, fetchedPoints).length <= merge(base, []).length;
 }
 
 /**
@@ -766,9 +774,6 @@ async function backfillYahooHistory(symbol, yahooSymbol, existing, exhausted = [
         `[refresh] ${symbol}: ${years.length} sparse year(s), backfilling in ${windows.length} window(s)`
     );
 
-    // What we already hold, so a window that returns nothing new can be
-    // recognised as the source's limit rather than a transient miss.
-    const haveDates = new Set(existing.map((point) => point.date));
     const newlyExhausted = [];
     const collected = [];
     for (const window of windows) {
@@ -805,7 +810,7 @@ async function backfillYahooHistory(symbol, yahooSymbol, existing, exhausted = [
              * an empty one leaves the years eligible, so a transient outage
              * never gets mistaken for a permanent gap.
              */
-            if (isSourceExhausted(points, haveDates)) {
+            if (isSourceExhausted(existing, points)) {
                 for (let year = window.start; year <= window.end; year++) {
                     newlyExhausted.push(year);
                 }
