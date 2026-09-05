@@ -8,7 +8,14 @@ const API_KEY =
 const BASE_URL = 'https://api.freecurrencyapi.com/v1/latest';
 
 /** 3 hours. */
-const REVALIDATE_SECONDS = 10800;
+/**
+ * Cached for the life of the deployment, not on a timer. This is the fallback
+ * used only when the committed snapshot is stale, and Next takes the minimum
+ * of a route's revalidate and any inside it — so a timer here silently
+ * overrode `export const revalidate = false` on every page that reads it.
+ * See the note on readSnapshot in src/lib/prices.ts.
+ */
+const REVALIDATE_SECONDS = false as const;
 
 export type ExchangeRates = Record<string, number>;
 

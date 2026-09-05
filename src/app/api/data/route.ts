@@ -20,7 +20,10 @@ import { SITE_URL } from '@/lib/navigation';
  * response stays small because most callers only want the current price.
  */
 
-export const revalidate = 10800;
+// Static until the next deploy: see the note on readJson in src/lib/prices.ts.
+// Every figure on this page is read from committed JSON, so revalidating
+// regenerates byte-identical output and costs an ISR write for nothing.
+export const revalidate = false;
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

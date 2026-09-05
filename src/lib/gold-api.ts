@@ -26,7 +26,21 @@ const API_KEYS = (
 const BASE_URL = 'https://www.goldapi.io/api';
 
 /** 8 hours. */
-const REVALIDATE_SECONDS = 28800;
+/**
+ * Cached for the life of the deployment, not on a timer.
+ *
+ * This path is the fallback taken only when the committed snapshot is stale,
+ * and a timer here is worse than useless: Next takes the *minimum* of a
+ * route's revalidate and any cache or fetch revalidate inside it, so this one
+ * number silently overrode `export const revalidate = false` on every page
+ * that reads a price — the homepage, both today pages, the news pages — and
+ * kept them regenerating around the clock. That was a large share of the ISR
+ * writes that reached 300% of the free monthly allowance.
+ *
+ * Users still get live prices: the ticker is client-side against /api/live,
+ * which is force-dynamic and caches for 30 seconds at the edge.
+ */
+const REVALIDATE_SECONDS = false as const;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

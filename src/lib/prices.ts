@@ -22,6 +22,33 @@ const DATA_DIR = join(process.cwd(), 'data');
  */
 const MAX_SNAPSHOT_AGE_MS = 36 * 60 * 60 * 1000; // 36 hours
 
+/**
+ * Every page's data comes from files committed to the repository, and this is
+ * why no page revalidates on a timer.
+ *
+ * Nothing here is fetched at request time. The JSON in data/ changes only when
+ * the refresh workflow commits it, and that commit triggers a deploy. So the
+ * rendered output of any page is fixed for the entire life of a deployment,
+ * and a time-based revalidation regenerates byte-identical HTML from the
+ * identical file — while costing an ISR write.
+ *
+ * That mistake was expensive. With `revalidate` set to 3 hours or a day across
+ * thirty-odd routes, roughly 12,700 archive pages rendering on demand, and two
+ * deploys a day invalidating the cache, the project reached 300% of its
+ * 200,000 free monthly ISR writes. Every one of those writes produced a page
+ * identical to the one it replaced.
+ *
+ * The fix is in two parts, and both must hold. Pages listed by
+ * generateStaticParams are built once per deploy as static files and never
+ * cost a write at all, so periodStaticParams now emits every day page rather
+ * than the most recent 120. And `export const revalidate = false` everywhere
+ * data-driven stops the regeneration that bought nothing.
+ *
+ * If a genuinely live data source is ever added — one that changes without a
+ * deploy — that route needs its own revalidate, and this note stops applying
+ * to it. The live price ticker is already that case and already handled: it is
+ * client-side, hitting /api/live, which is force-dynamic.
+ */
 async function readSnapshot<T>(file: string, fallback: T): Promise<T> {
     try {
         return JSON.parse(await readFile(join(DATA_DIR, file), 'utf8')) as T;

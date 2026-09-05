@@ -15,7 +15,10 @@ import { formatCurrency } from '@/lib/currencies';
 import type { Metadata } from 'next';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 
-export const revalidate = 10800;
+// Static until the next deploy: see the note on readJson in src/lib/prices.ts.
+// Every figure on this page is read from committed JSON, so revalidating
+// regenerates byte-identical output and costs an ISR write for nothing.
+export const revalidate = false;
 
 /**
  * Metadata carries the date the figures belong to.
