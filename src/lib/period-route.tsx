@@ -31,9 +31,18 @@ function seriesFor(
 }
 
 /**
- * Prerender years, months and the most recent 120 days. Older days still work
- * — they render on demand and are then cached — which keeps build times sane
- * as the archive grows.
+ * Prerender every period: years, months and all ~13,000 day pages.
+ *
+ * This used to emit only the most recent 120 days, on the reasoning that older
+ * ones could render on demand and be cached. That reasoning ignored the price
+ * of the cache. Each on-demand render is an ISR write, every deploy discards
+ * the cache, and the data refresh deploys twice a day — so ~12,700 archive
+ * pages were being regenerated, from a file that had not changed, at a cost
+ * that reached 300% of the project's free monthly ISR allowance.
+ *
+ * A page listed here is built once per deploy as a static file and costs no
+ * writes at all, ever. Measured at 288 seconds for all 13,727 pages on three
+ * workers, against a twice-daily deploy — a trade worth making many times over.
  */
 export async function periodStaticParams(metal: MetalSymbol) {
     const history = await getHistory();
@@ -43,7 +52,7 @@ export async function periodStaticParams(metal: MetalSymbol) {
     return [
         ...listPeriods(series, 'year').map((key) => slugForKey(key, 'year')),
         ...listPeriods(series, 'month').map((key) => slugForKey(key, 'month')),
-        ...listPeriods(series, 'day').slice(-120).map((key) => slugForKey(key, 'day')),
+        ...listPeriods(series, 'day').map((key) => slugForKey(key, 'day')),
     ].map((period) => ({ period }));
 }
 

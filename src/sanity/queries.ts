@@ -26,7 +26,13 @@ const SLUGS_QUERY = `*[_type == "post" && defined(slug.current)]{ "slug": slug.c
 
 const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]`;
 
-const options = { next: { revalidate: 300 } };
+/**
+ * Sanity is the one source that genuinely changes without a deploy, so unlike
+ * everything else here it keeps a timer. An hour rather than five minutes: at
+ * 300s this alone regenerated /blog, /blog/[slug] and /sitemap.xml 288 times a
+ * day each, and a blog post appearing within the hour is fine.
+ */
+const options = { next: { revalidate: 3600 } };
 
 export async function getBlogPosts(): Promise<BlogPostSummary[]> {
     try {

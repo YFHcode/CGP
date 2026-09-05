@@ -8,7 +8,10 @@ import { getNewsArchive, groupArchiveByMonth } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { parsePeriod } from '@/lib/history-periods';
 
-export const revalidate = 86400;
+// Static until the next deploy: see the note on readJson in src/lib/prices.ts.
+// Every figure on this page is read from committed JSON, so revalidating
+// regenerates byte-identical output and costs an ISR write for nothing.
+export const revalidate = false;
 
 export const metadata = pageMetadata({
     title: 'Gold News Archive',

@@ -12,7 +12,10 @@ import { formatCurrency } from '@/lib/currencies';
 import { GRAMS_PER_OZ, KARATS, KARAT_PURITY, type Karat } from '@/lib/conversions';
 import { periodFaqSchema } from '@/lib/period-faq';
 
-export const revalidate = 10800;
+// Static until the next deploy: see the note on readJson in src/lib/prices.ts.
+// Every figure on this page is read from committed JSON, so revalidating
+// regenerates byte-identical output and costs an ISR write for nothing.
+export const revalidate = false;
 
 /**
  * Serve only the slugs generateStaticParams returns; anything else 404s at the

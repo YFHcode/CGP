@@ -23,7 +23,10 @@ import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
  * could find instead.
  */
 
-export const revalidate = 86400;
+// Static until the next deploy: see the note on readJson in src/lib/prices.ts.
+// Every figure on this page is read from committed JSON, so revalidating
+// regenerates byte-identical output and costs an ISR write for nothing.
+export const revalidate = false;
 
 const baseMetadata = pageMetadata({
     title: 'Silver Price History — Charts and Annual Returns',

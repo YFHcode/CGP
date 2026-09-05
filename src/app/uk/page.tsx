@@ -34,7 +34,10 @@ import { periodFaqSchema } from '@/lib/period-faq';
  * question in two vocabularies this site didn't previously speak.
  */
 
-export const revalidate = 10800;
+// Static until the next deploy: see the note on readJson in src/lib/prices.ts.
+// Every figure on this page is read from committed JSON, so revalidating
+// regenerates byte-identical output and costs an ISR write for nothing.
+export const revalidate = false;
 
 export async function generateMetadata() {
     const [{ gold }, rates] = await Promise.all([getPrices(), getRates()]);
