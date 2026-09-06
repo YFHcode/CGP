@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { PeriodPage } from '@/components/PeriodPage';
 import { ClosedDayPage } from '@/components/ClosedDayPage';
-import { describeClosedDay, closureSentence } from '@/lib/closed-days';
+import { describeClosedDay, closureSentence, closedDatesInRange } from '@/lib/closed-days';
 import { getHistory } from '@/lib/prices';
 import {
     METAL_ROUTES,
@@ -49,10 +49,21 @@ export async function periodStaticParams(metal: MetalSymbol) {
     const series = seriesFor(metal, history);
 
     // Emit canonical readable slugs, not ISO keys.
+    //
+    // Closed days are included even though they are noindex and unlisted. They
+    // are 6,039 URLs that would otherwise render on demand, and Vercel's route
+    // breakdown showed this route pair writing 6,900 times across 3,600 unique
+    // paths in twelve hours — on-demand generation, not revalidation, was the
+    // bill. Prerendering them costs about two minutes of build twice a day and
+    // takes the archive's ISR writes to zero rather than merely lower.
+    //
+    // Emitting every valid period is also what lets dynamicParams be false on
+    // the routes below, which is where the rest of the saving comes from.
     return [
         ...listPeriods(series, 'year').map((key) => slugForKey(key, 'year')),
         ...listPeriods(series, 'month').map((key) => slugForKey(key, 'month')),
         ...listPeriods(series, 'day').map((key) => slugForKey(key, 'day')),
+        ...closedDatesInRange(series).map((key) => slugForKey(key, 'day')),
     ].map((period) => ({ period }));
 }
 
