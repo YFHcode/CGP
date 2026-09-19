@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   scrape:
@@ -56,6 +56,21 @@ jobs:
           else
             echo "(too large to inline; use the artifact)"
           fi
+
+      - name: Commit the spreadsheet to this branch
+        # The sandbox that drives this cannot reach either the artifact blob
+        # storage or ind.nl, so git is the only channel the file can come back
+        # through. Removed again once collected.
+        if: success()
+        run: |
+          mkdir -p out
+          mv ind_recognised_sponsors_work.xlsx out/
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f out/ind_recognised_sponsors_work.xlsx
+          git commit -m "chore: IND recognised sponsors export [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          cp out/ind_recognised_sponsors_work.xlsx ./ind_recognised_sponsors_work.xlsx
 
       - name: Upload the spreadsheet
         if: always()
