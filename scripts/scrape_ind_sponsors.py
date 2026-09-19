@@ -65,19 +65,36 @@ def diagnose(html):
 
 
 def parse_rows(html):
+    """
+    Read (Organisation, KVK number) out of the register table.
+
+    Cells are collected from th *and* td, which is the whole trick. IND marks
+    the first column of every data row as <th scope="row"> — correct HTML for a
+    table whose rows are keyed by name — so looking only at td finds a single
+    cell per row, fails the two-column check, and silently returns nothing. The
+    live page has 12,984 rows and that mistake yielded 0.
+
+    The header row is then skipped by its content rather than its position,
+    since it is no longer distinguishable by tag.
+    """
     soup = BeautifulSoup(html, "lxml")
+    target = None
     for table in soup.find_all("table"):
         header = [th.get_text(strip=True) for th in table.find_all("th")]
         if any("organisation" in h.lower() for h in header):
+            target = table
             break
-    else:
+    if target is None:
         raise RuntimeError("Could not find the Organisation table on the page.")
 
     rows = []
-    for tr in table.find_all("tr"):
-        cells = [td.get_text(" ", strip=True) for td in tr.find_all("td")]
-        if len(cells) >= 2 and cells[0]:
-            rows.append((cells[0], cells[1]))  # (Organisation, KVK number)
+    for tr in target.find_all("tr"):
+        cells = [c.get_text(" ", strip=True) for c in tr.find_all(["th", "td"])]
+        if len(cells) < 2 or not cells[0]:
+            continue
+        if cells[0].strip().lower() == "organisation":
+            continue  # the header row
+        rows.append((cells[0], cells[1]))  # (Organisation, KVK number)
     return rows
 
 
