@@ -34,7 +34,14 @@ jobs:
           node-version: '22'
 
       - name: Verify data helpers
-        run: node --test scripts/refresh-data.test.mjs
+        run: node --test scripts/refresh-data.test.mjs scripts/indexnow.test.mjs
+
+      - name: Stash the pre-refresh history
+        # The only copy of "what the data looked like before". Once the refresh
+        # has overwritten data/history.json and the commit has landed, there is
+        # nothing left to diff against, and IndexNow would have to guess at
+        # which pages changed — which in practice means submitting all 13,700.
+        run: cp data/history.json "${RUNNER_TEMP}/history-before.json"
 
       - name: Refresh prices and history
         env:
@@ -71,12 +78,15 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit updated data
+        id: commit
         if: ${{ !inputs.dry_run }}
         run: |
           if [ -z "$(git status --porcelain data/)" ]; then
             echo "No data changes to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
@@ -93,3 +103,17 @@ jobs:
           done
           echo "Could not push refreshed data after 3 attempts." >&2
           exit 1
+
+      - name: Tell IndexNow what changed
+        # Runs only after a real commit, because a push is a claim that the
+        # page changed and there is nothing to claim otherwise.
+        #
+        # The script waits for Vercel to finish deploying before it submits —
+        # it polls the live /api/data until the timestamp it is holding shows
+        # up there — so this step is mostly spent waiting, and will not fail
+        # the refresh if the deploy is slow. A missed ping costs one crawl
+        # cycle; a red X on the data refresh looks like the prices broke.
+        if: ${{ !inputs.dry_run && steps.commit.outputs.changed == 'true' }}
+        timeout-minutes: 20
+        continue-on-error: true
+        run: node scripts/indexnow.mjs "${RUNNER_TEMP}/history-before.json"
