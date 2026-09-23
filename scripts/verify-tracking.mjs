@@ -224,7 +224,7 @@ async function main() {
             lines.push(
                 `❌ **GTM container is not publicly reachable** — HTTP ${res.status} after ${ms}ms ` +
                     `fetching \`${gtmUrl}\`. If this container was recently created or renamed, ` +
-                    'double-check the ID in src/app/layout.tsx (NEXT_PUBLIC_GTM_ID) matches Tag Manager.',
+                    'double-check the ID in src/components/SiteDocument.tsx (NEXT_PUBLIC_GTM_ID) matches Tag Manager.',
                 ''
             );
             await report(lines);

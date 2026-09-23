@@ -3,9 +3,10 @@ import { TrendingUp } from 'lucide-react';
 
 import { ARCHIVE_NAV, MAIN_NAV, RESOURCE_NAV, TOOLS_NAV, SITE_NAME } from '@/lib/navigation';
 
-export function Footer() {
+/** `lang` as in Header: set when the footer's language differs from the page's. */
+export function Footer({ lang }: { lang?: string } = {}) {
     return (
-        <footer className="border-t border-white/10 bg-zinc-950">
+        <footer lang={lang} className="border-t border-white/10 bg-zinc-950">
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-3 lg:grid-cols-6">
                     <div className="col-span-1 md:col-span-2">

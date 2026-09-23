@@ -18,7 +18,11 @@ import { NAV_GROUPS } from '@/lib/navigation';
  * puts roughly twenty-five destinations two clicks from anywhere while
  * keeping the bar itself shorter than it was.
  */
-export function Header() {
+/**
+ * `lang` marks the navigation's language when it differs from the page's —
+ * on the translated pages the document is German or Dutch, the menu English.
+ */
+export function Header({ lang }: { lang?: string } = {}) {
     const [isOpen, setIsOpen] = useState(false);
     const [openGroup, setOpenGroup] = useState<string | null>(null);
     const [openMobileGroup, setOpenMobileGroup] = useState<string | null>(null);
@@ -58,7 +62,7 @@ export function Header() {
     }, [openGroup]);
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/80 backdrop-blur-xl">
+        <header lang={lang} className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/80 backdrop-blur-xl">
             <a
                 href="#main"
                 className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:font-medium focus:text-black"

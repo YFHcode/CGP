@@ -990,6 +990,11 @@ routes from the filesystem, extract hrefs from the library, and fail when a
 route (minus an explicit exemption list) is missing. Do not mirror the library
 in the test; that only checks a copy against the original.
 
+Make such a walker enter route groups (folders like `(site)` that do not
+appear in URLs) and assert a minimum number of routes found. A walker that
+skips groups finds nothing once pages move into one — and a check over an empty
+list passes.
+
 ### 10.4 Prefetching long-tail links costs money
 
 Frameworks that prefetch every link as it scrolls into view (Next.js does by
@@ -2058,9 +2063,12 @@ with client-side interactivity in small leaf components.
 9. **Client component props are serialized into the HTML.** Pass only what the
    component renders (11.3).
 10. **`hrefLang`, not `hreflang`,** in emitted HTML — match case-insensitively.
-11. **`<html lang>` comes from the root layout.** Localized sections need a
-    layout that sets `lang` from the route (for example `app/[lang]/layout.tsx`),
-    or every translated page is declared English (6.7).
+11. **`<html lang>` comes from the root layout.** Localized sections need
+    their own root layout that sets `lang` — route groups make that possible
+    without changing URLs: `app/(site)/layout.tsx` for the default language,
+    `app/[lang]/layout.tsx` for translations, with the shared shell (header,
+    footer, scripts) in one component both render. Otherwise every translated
+    page is declared English (6.7).
 12. **Metadata may be streamed.** Recent versions can send `generateMetadata`
     output after the initial HTML to browsers and JavaScript-running crawlers,
     and in the `<head>` to a list of HTML-only bots. If a raw-HTML audit finds
@@ -2068,6 +2076,15 @@ with client-side interactivity in small leaf components.
     concluding.
 13. **Client boundaries:** keep interactive parts as small leaves so the
     surrounding content stays server-rendered.
+14. **A layout's `title.template` only reaches child segments.** A page in the
+    same segment as its layout — `app/[lang]/page.tsx` under
+    `app/[lang]/layout.tsx` — silently loses the brand suffix. Set
+    `title: { absolute: … }` on that page.
+15. **Several root layouts need a global not-found page.** With no single root
+    layout, unmatched URLs and `dynamicParams = false` rejections render Next's
+    unstyled default 404 unless `app/global-not-found.tsx` exists (behind the
+    `experimental.globalNotFound` flag in 16.x). Diff every 404 case before and
+    after such a restructure.
 
 ### A.3 Other stacks — what to check
 

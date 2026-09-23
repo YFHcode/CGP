@@ -38,13 +38,25 @@ const body = libraryBody();
 const hrefs = [...body.matchAll(/href: '([^']+)'/g)].map((m) => m[1]);
 const labels = [...body.matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
 
-/** Every static (non-dynamic) route with a page.tsx. */
+/**
+ * Every static (non-dynamic) route with a page.tsx.
+ *
+ * Route groups — folders named `(something)` — are walked into without adding
+ * a URL segment. They used to be skipped, which was harmless while none held
+ * routes; once the English site moved into `(site)`, skipping them would have
+ * found no routes at all and passed while checking nothing. The route-count
+ * floor in the test below exists for the same reason.
+ */
 function staticRoutes(dir = APP, prefix = '') {
     const found = [];
     for (const entry of readdirSync(dir)) {
         const full = join(dir, entry);
         if (!statSync(full).isDirectory()) continue;
-        if (entry.startsWith('[') || entry.startsWith('(') || entry.startsWith('_')) continue;
+        if (entry.startsWith('(') && entry.endsWith(')')) {
+            found.push(...staticRoutes(full, prefix));
+            continue;
+        }
+        if (entry.startsWith('[') || entry.startsWith('_')) continue;
         const route = `${prefix}/${entry}`;
         try {
             statSync(join(full, 'page.tsx'));
@@ -67,7 +79,10 @@ function staticRoutes(dir = APP, prefix = '') {
 const EXEMPT = new Set(['/about', '/contact', '/privacy-policy', '/terms']);
 
 test('every static route has a link-library entry', () => {
-    const routes = staticRoutes().filter((r) => !EXEMPT.has(r));
+    const all = staticRoutes();
+    // A walk that finds almost nothing makes the check below vacuous.
+    assert.ok(all.length >= 20, `expected the site's static routes, found only ${all.length}: ${all.join(', ')}`);
+    const routes = all.filter((r) => !EXEMPT.has(r));
     const linked = new Set(hrefs);
     const missing = routes.filter((r) => !linked.has(r));
     assert.deepEqual(
