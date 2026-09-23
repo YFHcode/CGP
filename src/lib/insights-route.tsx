@@ -20,6 +20,7 @@ import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
 import { SeasonalityChart } from '@/components/SeasonalityChart';
 import { MilestoneTimeline } from '@/components/MilestoneTimeline';
 import type { HistoryPoint, MetalSymbol } from '@/types';
+import { downsample } from '@/lib/chart-window';
 
 /**
  * Shared implementation for /gold-price-insights and /silver-price-insights.
@@ -195,7 +196,7 @@ export async function renderInsightsPage(metal: MetalSymbol) {
                         The 200-day average trending above the 50-day is the classic reading of a
                         longer-term downtrend, and vice-versa for an uptrend.
                     </p>
-                    <LazyTrendChartWrapper points={ma} metalColor={metalColor} metalName={route.name} />
+                    <LazyTrendChartWrapper points={downsample(ma)} metalColor={metalColor} metalName={route.name} />
                 </div>
             </section>
 
@@ -208,7 +209,7 @@ export async function renderInsightsPage(metal: MetalSymbol) {
                         Rolling 30-day volatility is the standard deviation of daily % moves — higher
                         means bigger, less predictable swings, not necessarily a falling price.
                     </p>
-                    <LazyVolatilityChartWrapper points={volatility} />
+                    <LazyVolatilityChartWrapper points={downsample(volatility)} />
 
                     {drawdowns.maxDrawdown && (
                         <p className="mt-6 max-w-3xl text-sm text-zinc-300">

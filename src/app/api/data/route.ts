@@ -30,6 +30,12 @@ export async function GET(request: Request) {
     const wanted = (searchParams.get('history') ?? '').toLowerCase();
     const includeGold = wanted === 'gold' || wanted === 'both';
     const includeSilver = wanted === 'silver' || wanted === 'both';
+    // Platinum and palladium are single-metal only, so `both` keeps meaning
+    // gold and silver for anyone already relying on it. They were added so
+    // the site's own charts can fetch those records on demand rather than
+    // embedding them in every page (see src/lib/use-full-history.ts).
+    const includePlatinum = wanted === 'platinum';
+    const includePalladium = wanted === 'palladium';
 
     const [{ gold, silver, updatedAt }, history, platinum, palladium] = await Promise.all([
         getPrices(),
@@ -82,9 +88,11 @@ export async function GET(request: Request) {
                     platinum: platinum.series.length,
                     palladium: palladium.series.length,
                 },
-                usage: `Add ?history=gold, ?history=silver or ?history=both to include the close series`,
+                usage: `Add ?history=gold, ?history=silver or ?history=both to include the close series; ?history=platinum and ?history=palladium work the same way`,
                 gold: includeGold ? history.gold : undefined,
                 silver: includeSilver ? history.silver : undefined,
+                platinum: includePlatinum ? platinum.series : undefined,
+                palladium: includePalladium ? palladium.series : undefined,
             },
         },
         {

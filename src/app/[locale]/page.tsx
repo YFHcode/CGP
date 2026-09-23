@@ -10,6 +10,7 @@ import { LOCALE_PAGES, findLocalePage, localeAlternates } from '@/lib/locale-pag
 import { pageMetadata, SITE_URL } from '@/lib/seo';
 import { periodFaqSchema } from '@/lib/period-faq';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
+import { rangeChartSeries } from '@/lib/chart-window';
 
 /**
  * Localized landing pages at /nl, /ua, /de.
@@ -103,7 +104,7 @@ export default async function LocalePage({ params }: { params: Promise<{ locale:
             <LazyPriceChart
                 lockMetal
                 metal={isGold ? 'gold' : 'silver'}
-                series={isGold ? history.gold : history.silver}
+                {...rangeChartSeries(isGold ? 'gold' : 'silver', isGold ? history.gold : history.silver)}
                 source={history.source}
                 title={config.chartTitle}
             />

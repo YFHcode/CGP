@@ -10,6 +10,7 @@ import { getHistory } from '@/lib/prices';
 import { breadcrumbSchema, datasetSchema, pageMetadata, SITE_URL } from '@/lib/seo';
 import { describeCoverage } from '@/lib/coverage';
 import { localeAlternates } from '@/lib/locale-pages';
+import { rangeChartPair } from '@/lib/chart-window';
 
 const baseMetadata = pageMetadata({
   title: 'Gold Price History',
@@ -98,8 +99,7 @@ export default async function GoldPriceHistoryPage() {
       </section>
 
       <LazyPriceChart
-        gold={history.gold}
-        silver={history.silver}
+        {...rangeChartPair(history.gold, history.silver)}
         source={history.source}
         title="Historical closing prices"
       />

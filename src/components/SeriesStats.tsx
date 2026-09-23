@@ -17,6 +17,7 @@ function DayDate({ date, routeBase }: { date: string; routeBase: string | null }
     return (
         <Link
             href={`${routeBase}/${slugForKey(date, 'day')}`}
+            prefetch={false}
             className="text-gold-400 hover:text-gold-300"
         >
             {formatLongDate(date)}

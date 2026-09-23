@@ -14,6 +14,7 @@ import {
 
 import type { ForecastPoint } from '@/lib/forecast';
 import type { HistoryPoint } from '@/types';
+import { FORECAST_TAIL } from '@/lib/chart-window';
 
 /**
  * Fan chart: recent history, then the projection as a widening band.
@@ -55,7 +56,7 @@ const money = (v: number) =>
     v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export function ForecastChart({ history, forecast, metalName, color }: ForecastChartProps) {
-    const tail = history.slice(-40);
+    const tail = history.slice(-FORECAST_TAIL);
 
     const rows: Row[] = [
         ...tail.map((p) => ({ date: p.date, label: fmt(p.date), actual: p.close })),

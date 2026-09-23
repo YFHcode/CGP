@@ -22,6 +22,7 @@ import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { formatMetalPrice, formatPercent } from '@/lib/currencies';
 import { movingAverages, computeDrawdowns, rollingVolatility } from '@/lib/insights-metrics';
 import { rsi, macd, bollinger, goldSilverRatio, latest } from '@/lib/indicators';
+import { downsample, lastDrawn, rangeChartSeries, thinRatio } from '@/lib/chart-window';
 
 const CHARTS = {
     gold: {
@@ -115,6 +116,17 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
             ? goldSilverRatio(history.gold, history.silver)
             : [];
     const currentRsi = latest(rsiSeries);
+
+    // What the panels below actually draw, trimmed here so the rest never
+    // reaches the page payload: the indicator panels show the last 180
+    // sessions, the trend and volatility charts 400 points, the ratio chart
+    // 400 with its mean over the full record. Each client component re-applies
+    // the same step and gets the same answer — see src/lib/chart-window.ts.
+    // Bollinger's close line only needs the closes on the dates it draws.
+    const bollingerDrawn = lastDrawn(bollingerSeries, (p) => p.middle !== null);
+    const bollingerDates = new Set(bollingerDrawn.map((p) => p.date));
+    const bollingerCloses = series.filter((p) => bollingerDates.has(p.date));
+    const ratio = thinRatio(ratioSeries);
     const metalColor = slug === 'gold' ? '#d6a93e' : '#94a3b8';
 
     return (
@@ -147,7 +159,7 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
             <LazyPriceChart
                 lockMetal
                 metal={slug}
-                series={series}
+                {...rangeChartSeries(slug, series)}
                 source={history.source}
                 title={`${chart.name} price history`}
             />
@@ -206,8 +218,8 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                         </div>
 
                         <div className="space-y-6">
-                            <LazyTrendChartWrapper points={ma} metalColor={metalColor} metalName={chart.name} />
-                            <LazyVolatilityChartWrapper points={volatility} />
+                            <LazyTrendChartWrapper points={downsample(ma)} metalColor={metalColor} metalName={chart.name} />
+                            <LazyVolatilityChartWrapper points={downsample(volatility)} />
                         </div>
 
                         {/*
@@ -241,12 +253,18 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                             </p>
                         </div>
 
-                        {rsiSeries.length > 0 && <LazyRsiChart points={rsiSeries} />}
-                        {macdSeries.length > 0 && <LazyMacdChart points={macdSeries} />}
-                        {bollingerSeries.length > 0 && (
-                            <LazyBollingerChart points={bollingerSeries} closes={series} />
+                        {rsiSeries.length > 0 && <LazyRsiChart points={lastDrawn(rsiSeries, (p) => p.value !== null)} />}
+                        {macdSeries.length > 0 && (
+                            <LazyMacdChart
+                                points={lastDrawn(macdSeries, (p) => p.macd !== null && p.signal !== null)}
+                            />
                         )}
-                        {ratioSeries.length > 0 && <LazyRatioChart points={ratioSeries} />}
+                        {bollingerSeries.length > 0 && (
+                            <LazyBollingerChart points={bollingerDrawn} closes={bollingerCloses} />
+                        )}
+                        {ratio.points.length > 0 && (
+                            <LazyRatioChart points={ratio.points} mean={ratio.mean ?? undefined} />
+                        )}
 
                         <div className="mt-6 flex flex-wrap items-center gap-4">
                             <Link
@@ -257,7 +275,8 @@ export default async function ChartPage({ params }: { params: Promise<{ symbol: 
                                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
                             </Link>
                             <DataExport
-                                points={series}
+                                metal={slug}
+                                rows={series.length}
                                 filename={`chartgoldprice-${slug}-daily-closes.csv`}
                                 label={`Download ${chart.name.toLowerCase()} history`}
                             />

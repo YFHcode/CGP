@@ -69,6 +69,17 @@ const cachedNews = unstable_cache(fetchNews, ['news-gold-us'], {
 const MIN_LIVE_ITEMS = 4;
 
 /**
+ * The most stories getNews returns once the archive is filling in.
+ *
+ * The backfill had no ceiling, so as the committed archive grew the /news page
+ * grew with it — 398 stories and 1.2 MB by September 2026, on a page Vercel
+ * bills per 8 KB read. "Latest news" is the job; every older story stays one
+ * click away on /news/archive, which the page already links to. 48 fills
+ * sixteen rows of the three-column grid.
+ */
+const MAX_BACKFILLED_ITEMS = 48;
+
+/**
  * The archive stores link metadata only, so there is no snippet to carry over.
  *
  * `reportedDate` is deliberately ignored: the provider reports relative
@@ -136,7 +147,7 @@ export async function getNews(): Promise<NewsItem[]> {
         // to supplement. Both groups are already reasonably ordered on
         // their own — live by the provider's relevance order, archive
         // newest-first — so concatenation preserves that correctly.
-        return [...live, ...backfill];
+        return [...live, ...backfill].slice(0, Math.max(live.length, MAX_BACKFILLED_ITEMS));
     } catch (error) {
         console.error('[NewsAPI] archive fallback failed:', error instanceof Error ? error.message : error);
         return live;

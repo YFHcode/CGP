@@ -11,6 +11,7 @@ import { getPrices, getHistory } from '@/lib/prices';
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { formatLongDate, utcDateOf } from '@/lib/history-periods';
 import { formatCurrency } from '@/lib/currencies';
+import { rangeChartSeries } from '@/lib/chart-window';
 
 // Static until the next deploy: see the note on readJson in src/lib/prices.ts.
 // Every figure on this page is read from committed JSON, so revalidating
@@ -77,7 +78,7 @@ export default async function SilverPriceTodayPage() {
       <LazyPriceChart
         lockMetal
         metal="silver"
-        series={history.silver}
+        {...rangeChartSeries('silver', history.silver)}
         source={history.source}
         title="Silver price history"
       />

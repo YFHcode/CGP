@@ -24,6 +24,22 @@ import {
 } from '@/lib/history-periods';
 import type { HistoryPoint, MetalSymbol } from '@/types';
 
+/*
+ * Every link from here into another archive page carries prefetch={false}, as
+ * do the same links in ClosedDayPage, SeriesStats, MilestoneTimeline and the
+ * archive index.
+ *
+ * Next prefetches any <Link> that scrolls into view, and each prefetch of a
+ * page that is not already in the visitor's CDN region is an ISR read from
+ * Vercel's store — billed per 8 KB. For popular pages that is a cache hit and
+ * costs nothing. The archive is 13,700 pages that are each visited a handful
+ * of times a month, so a prefetch there is almost always a miss, paid for a
+ * page the visitor mostly never opens: a month page's daily table alone puts
+ * twenty-odd day links on screen. Crawlers follow the href either way, and a
+ * click still loads a static page from the CDN, so nothing is lost but the
+ * speculative reads.
+ */
+
 interface PeriodPageProps {
     metal: MetalSymbol;
     stats: PeriodStats;
@@ -452,6 +468,7 @@ export function PeriodPage({
                                     The strongest session of {period.label} was{' '}
                                     <Link
                                         href={`${route.base}/${slugForKey(insights.bestDay.date, 'day')}`}
+                                        prefetch={false}
                                         className="text-gold-400 hover:text-gold-300"
                                     >
                                         {formatLongDate(insights.bestDay.date)}
@@ -459,6 +476,7 @@ export function PeriodPage({
                                     at {pct(insights.bestDay.pct)}, and the weakest{' '}
                                     <Link
                                         href={`${route.base}/${slugForKey(insights.worstDay.date, 'day')}`}
+                                        prefetch={false}
                                         className="text-gold-400 hover:text-gold-300"
                                     >
                                         {formatLongDate(insights.worstDay.date)}
@@ -518,6 +536,7 @@ export function PeriodPage({
                                                     ) : (
                                                         <Link
                                                             href={`${route.base}/${slugForKey(point.date, 'day')}`}
+                                                            prefetch={false}
                                                             className="text-gold-400 hover:text-gold-300"
                                                         >
                                                             {formatLongDate(point.date)}
@@ -590,6 +609,7 @@ export function PeriodPage({
                     {previous ? (
                         <Link
                             href={`${route.base}/${previous.slug}`}
+                            prefetch={false}
                             className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-gold-500/30 hover:text-gold-300"
                         >
                             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -602,6 +622,7 @@ export function PeriodPage({
                     {parent && (
                         <Link
                             href={`${route.base}/${parent.slug}`}
+                            prefetch={false}
                             className="text-sm text-gold-400 hover:text-gold-300"
                         >
                             View all of {parent.label}
@@ -611,6 +632,7 @@ export function PeriodPage({
                     {next ? (
                         <Link
                             href={`${route.base}/${next.slug}`}
+                            prefetch={false}
                             className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 transition-colors hover:border-gold-500/30 hover:text-gold-300"
                         >
                             {route.name} price, {next.label}

@@ -15,6 +15,7 @@ import {
 
 import { formatMetalPrice, formatPercent } from '@/lib/currencies';
 import type { MovingAveragePoint, VolatilityPoint } from '@/lib/insights-metrics';
+import { downsample } from '@/lib/chart-window';
 
 /**
  * Recharts-based visualizations for the insights pages.
@@ -26,18 +27,6 @@ import type { MovingAveragePoint, VolatilityPoint } from '@/lib/insights-metrics
  * carries the price line, unchanged.
  */
 
-const MAX_PLOTTED_POINTS = 400;
-
-/** Evenly thins a series, always keeping the first and last points. */
-function downsample<T>(points: T[], limit = MAX_PLOTTED_POINTS): T[] {
-    if (points.length <= limit) return points;
-    const step = (points.length - 1) / (limit - 1);
-    const thinned: T[] = [];
-    for (let i = 0; i < limit; i += 1) {
-        thinned.push(points[Math.round(i * step)]);
-    }
-    return thinned;
-}
 
 function dateLabel(iso: string, longRange: boolean): string {
     // timeZone: 'UTC' — these are calendar dates, not instants. Without it a

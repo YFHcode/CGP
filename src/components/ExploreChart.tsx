@@ -21,6 +21,16 @@ import {
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { formatMetalPrice, formatPercent, formatNumber } from '@/lib/currencies';
+import {
+    MAX_PLOTTED_POINTS,
+    RANGE_DAYS,
+    RANGES,
+    downsample,
+    needsFullHistory,
+    sliceRange,
+    type TimeRange,
+} from '@/lib/chart-window';
+import { useFullHistory } from '@/lib/use-full-history';
 import type { HistoryPoint } from '@/types';
 
 /**
@@ -38,18 +48,6 @@ import type { HistoryPoint } from '@/types';
  */
 
 type ChartKind = 'price' | 'compare' | 'change' | 'ratio';
-type TimeRange = '1W' | '1M' | '6M' | '1Y' | '5Y' | '10Y' | 'MAX';
-
-const RANGE_DAYS: Record<TimeRange, number | null> = {
-    '1W': 7,
-    '1M': 30,
-    '6M': 180,
-    '1Y': 365,
-    '5Y': 365 * 5,
-    '10Y': 365 * 10,
-    MAX: null,
-};
-const RANGES = Object.keys(RANGE_DAYS) as TimeRange[];
 
 const CHART_KINDS: { key: ChartKind; label: string; needsMetal: boolean }[] = [
     { key: 'price', label: 'Price', needsMetal: true },
@@ -58,31 +56,7 @@ const CHART_KINDS: { key: ChartKind; label: string; needsMetal: boolean }[] = [
     { key: 'ratio', label: 'Gold / Silver ratio', needsMetal: false },
 ];
 
-const MAX_PLOTTED_POINTS = 400;
 const MAX_PLOTTED_BARS = 200;
-
-function downsample<T>(points: T[], limit: number): T[] {
-    if (points.length <= limit) return points;
-    const step = (points.length - 1) / (limit - 1);
-    const thinned: T[] = [];
-    for (let i = 0; i < limit; i += 1) {
-        thinned.push(points[Math.round(i * step)]);
-    }
-    return thinned;
-}
-
-function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
-    if (points.length === 0) return [];
-    const days = RANGE_DAYS[range];
-    if (days === null) return points;
-
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const windowed = points.filter((point) => {
-        const time = new Date(point.date).getTime();
-        return Number.isFinite(time) && time >= cutoff;
-    });
-    return windowed.length >= 2 ? windowed : points.slice(-days);
-}
 
 function dateLabel(iso: string, longRange: boolean): string {
     // timeZone: 'UTC' is required, not cosmetic. "2026-08-02" parses as UTC
@@ -116,13 +90,39 @@ interface ExploreChartProps {
     gold: HistoryPoint[];
     silver: HistoryPoint[];
     source?: string | null;
+    /**
+     * `gold` and `silver` hold only the recent tail, and the full records are
+     * fetched when a range past a year is chosen. Set via rangeChartPair() in
+     * src/lib/chart-window.ts.
+     */
+    fullHistory?: boolean;
 }
 
-export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
+export function ExploreChart({ gold: goldRecent, silver: silverRecent, source, fullHistory }: ExploreChartProps) {
     const [kind, setKind] = useState<ChartKind>('price');
     const [activeMetal, setActiveMetal] = useState<'gold' | 'silver'>('gold');
     const [timeRange, setTimeRange] = useState<TimeRange>('1M');
     const { convertPrice, currency, activeCurrency } = useCurrency();
+
+    // Fetch only what the current view draws: one metal for price and daily
+    // change, both for the comparison and the ratio. Short ranges never need
+    // it — the tails cover a year exactly, which the equivalence tests in
+    // scripts/chart-window.test.mjs check for all four views.
+    const wantsFull = Boolean(fullHistory) && needsFullHistory(RANGE_DAYS[timeRange]);
+    const bothMetals = kind === 'compare' || kind === 'ratio';
+    const needGold = wantsFull && (bothMetals || activeMetal === 'gold');
+    const needSilver = wantsFull && (bothMetals || activeMetal === 'silver');
+    const goldFull = useFullHistory(fullHistory ? 'gold' : undefined, needGold);
+    const silverFull = useFullHistory(fullHistory ? 'silver' : undefined, needSilver);
+    const gold = goldFull.points ?? goldRecent;
+    const silver = silverFull.points ?? silverRecent;
+
+    // Hold the chart rather than draw seventeen months under a "MAX" label.
+    const waiting =
+        (needGold && goldFull.points === null && goldFull.status !== 'failed') ||
+        (needSilver && silverFull.points === null && silverFull.status !== 'failed');
+    const partial =
+        (needGold && goldFull.status === 'failed') || (needSilver && silverFull.status === 'failed');
 
     const activeSeries = activeMetal === 'gold' ? gold : silver;
     const activeColor = activeMetal === 'gold' ? GOLD_COLOR : SILVER_COLOR;
@@ -309,7 +309,14 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
                 </div>
 
                 <div className="h-[400px] w-full rounded-xl border border-white/10 bg-black/40 p-4 backdrop-blur-sm">
-                    {!hasData ? (
+                    {waiting ? (
+                        <div
+                            role="status"
+                            className="flex h-full items-center justify-center text-sm text-zinc-400"
+                        >
+                            Loading the full price record…
+                        </div>
+                    ) : !hasData ? (
                         <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                             <p className="font-medium text-zinc-300">No historical data for this range yet</p>
                             <p className="max-w-md text-sm text-zinc-400">
@@ -439,8 +446,9 @@ export function ExploreChart({ gold, silver, source }: ExploreChartProps) {
                     )}
                 </div>
 
-                {hasData && (
+                {hasData && !waiting && (
                     <p className="mt-3 text-xs text-zinc-400">
+                        {partial && 'Full record unavailable, showing recent history · '}
                         {source ? `Source: ${source}` : ''}
                         {currency !== activeCurrency && kind === 'price'
                             ? ` · ${currency} rates unavailable, showing ${activeCurrency}`
