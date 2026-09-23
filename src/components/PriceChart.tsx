@@ -14,29 +14,16 @@ import {
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { formatMetalPrice } from '@/lib/currencies';
+import {
+    RANGE_DAYS,
+    RANGES,
+    downsample,
+    needsFullHistory,
+    sliceRange,
+    type TimeRange,
+} from '@/lib/chart-window';
+import { useFullHistory, type HistoryMetal } from '@/lib/use-full-history';
 import type { AnyMetalSymbol, HistoryPoint } from '@/types';
-
-type TimeRange = '1W' | '1M' | '6M' | '1Y' | '5Y' | '10Y' | 'MAX';
-
-/**
- * Trailing window in days. `null` means every point we hold.
- *
- * The multi-year windows exist because "10 year gold chart" and
- * "silver price over time" are recurring searches that a one-year maximum
- * cannot answer. A range with no data yet still renders — sliceRange falls
- * back to the tail — so these degrade quietly while history accumulates.
- */
-const RANGE_DAYS: Record<TimeRange, number | null> = {
-    '1W': 7,
-    '1M': 30,
-    '6M': 180,
-    '1Y': 365,
-    '5Y': 365 * 5,
-    '10Y': 365 * 10,
-    MAX: null,
-};
-
-const RANGES = Object.keys(RANGE_DAYS) as TimeRange[];
 
 interface PriceChartCommonProps {
     /** Attribution for the series, shown under the chart. */
@@ -67,6 +54,12 @@ type PriceChartProps = PriceChartCommonProps &
               silver: HistoryPoint[];
               /** Which metal to show first. */
               defaultMetal?: 'gold' | 'silver';
+              /**
+               * `gold` and `silver` hold only the recent tail; fetch the full
+               * record of whichever is showing for 5Y, 10Y and MAX. Set via
+               * rangeChartPair() in src/lib/chart-window.ts.
+               */
+              fullHistory?: boolean;
           }
         | {
               /**
@@ -83,48 +76,15 @@ type PriceChartProps = PriceChartCommonProps &
                */
               metal: ChartMetal;
               series: HistoryPoint[];
+              /**
+               * `series` holds only the recent tail; fetch this metal's full
+               * record for 5Y, 10Y and MAX. Set via rangeChartSeries() in
+               * src/lib/chart-window.ts. Absent when `series` is complete — an
+               * archive page's own period — and nothing is ever fetched.
+               */
+              fullHistory?: HistoryMetal;
           }
     );
-
-/**
- * Caps how many points reach the SVG. Stored history is append-only and grows
- * forever, so MAX must downsample or the chart would slow to a crawl after a
- * few years.
- */
-const MAX_PLOTTED_POINTS = 400;
-
-/**
- * Evenly thins a series, always keeping the first and last points so the
- * endpoints of the range stay accurate.
- */
-function downsample(points: HistoryPoint[], limit = MAX_PLOTTED_POINTS): HistoryPoint[] {
-    if (points.length <= limit) return points;
-
-    const step = (points.length - 1) / (limit - 1);
-    const thinned: HistoryPoint[] = [];
-    for (let i = 0; i < limit; i += 1) {
-        thinned.push(points[Math.round(i * step)]);
-    }
-    return thinned;
-}
-
-/** Trims a series to the trailing window for the selected range. */
-function sliceRange(points: HistoryPoint[], range: TimeRange): HistoryPoint[] {
-    if (points.length === 0) return [];
-
-    const days = RANGE_DAYS[range];
-    if (days === null) return points; // MAX — everything we hold
-
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const windowed = points.filter((point) => {
-        const time = new Date(point.date).getTime();
-        return Number.isFinite(time) && time >= cutoff;
-    });
-
-    // A sparse series (e.g. only a few accumulated snapshots) would render as an
-    // empty chart; fall back to the tail so something meaningful still shows.
-    return windowed.length >= 2 ? windowed : points.slice(-days);
-}
 
 export function PriceChart(props: PriceChartProps) {
     const { source, title = 'Price history' } = props;
@@ -136,7 +96,25 @@ export function PriceChart(props: PriceChartProps) {
     const [timeRange, setTimeRange] = useState<TimeRange>('1M');
     const { convertPrice, currency, activeCurrency } = useCurrency();
 
-    const series = props.lockMetal ? props.series : activeMetal === 'gold' ? props.gold : props.silver;
+    const recent = props.lockMetal ? props.series : activeMetal === 'gold' ? props.gold : props.silver;
+
+    // Only the ranges past a year need more than the page shipped. Once the
+    // full record has arrived it is used for every range: it is a superset of
+    // the tail, so the short ranges draw exactly as they did before.
+    const fullMetal: HistoryMetal | undefined = props.lockMetal
+        ? props.fullHistory
+        : props.fullHistory
+          ? activeMetal === 'silver' ? 'silver' : 'gold'
+          : undefined;
+    const wantsFull = fullMetal !== undefined && needsFullHistory(RANGE_DAYS[timeRange]);
+    const { points: full, status } = useFullHistory(fullMetal, wantsFull);
+    const series = full ?? recent;
+
+    // Drawing the tail under a "MAX" label while the rest loads would show
+    // seventeen months as if it were the whole record. Hold the chart instead;
+    // on failure, draw what we have and say so below.
+    const waiting = wantsFull && full === null && status !== 'failed';
+    const partial = wantsFull && status === 'failed';
 
     const data = useMemo(() => {
         const sliced = downsample(sliceRange(series, timeRange));
@@ -237,7 +215,14 @@ export function PriceChart(props: PriceChartProps) {
                 </div>
 
                 <div className="h-[400px] w-full rounded-xl border border-white/10 bg-black/40 p-4 backdrop-blur-sm">
-                    {hasData ? (
+                    {waiting ? (
+                        <div
+                            role="status"
+                            className="flex h-full items-center justify-center text-sm text-zinc-400"
+                        >
+                            Loading the full price record…
+                        </div>
+                    ) : hasData ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={data}>
                                 <defs>
@@ -308,11 +293,12 @@ export function PriceChart(props: PriceChartProps) {
                     )}
                 </div>
 
-                {hasData && (
+                {hasData && !waiting && (
                     <p className="mt-3 text-xs text-zinc-400">
                         {/* "closes", not "daily closes": the long ranges reach
                             back into the monthly portion of the record. */}
                         {data.length} closes
+                        {partial && ' · Full record unavailable, showing recent history'}
                         {source ? ` · Source: ${source}` : ''}
                         {currency !== activeCurrency
                             ? ` · ${currency} rates unavailable, showing ${activeCurrency}`

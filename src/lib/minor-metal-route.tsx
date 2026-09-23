@@ -13,6 +13,7 @@ import { breadcrumbSchema, datasetSchema, pageMetadata } from '@/lib/seo';
 import { periodFaqSchema } from '@/lib/period-faq';
 import { describeCoverage } from '@/lib/coverage';
 import type { MinorMetal } from '@/lib/minor-metals';
+import { rangeChartSeries } from '@/lib/chart-window';
 
 /**
  * Shared renderer for the platinum and palladium pages.
@@ -147,7 +148,7 @@ export async function MinorMetalPage({ metal }: { metal: MinorMetal }) {
                 <LazyPriceChart
                     lockMetal
                     metal={metal.chartMetal}
-                    series={series}
+                    {...rangeChartSeries(metal.chartMetal, series)}
                     source={chartSource}
                     title={`${metal.name} closing prices`}
                 />

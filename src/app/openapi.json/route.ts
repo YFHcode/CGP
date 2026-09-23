@@ -90,9 +90,13 @@ export async function GET() {
                             in: 'query',
                             required: false,
                             description:
-                                'Include the full close series for one or both metals. Omit for ' +
-                                'the smaller current-price response.',
-                            schema: { type: 'string', enum: ['gold', 'silver', 'both'] },
+                                'Include the full close series for gold, silver or both, or for ' +
+                                'platinum or palladium alone. Omit for the smaller current-price ' +
+                                'response.',
+                            schema: {
+                                type: 'string',
+                                enum: ['gold', 'silver', 'both', 'platinum', 'palladium'],
+                            },
                         },
                     ],
                     responses: {
@@ -158,6 +162,16 @@ export async function GET() {
                                                         items: historyPoint,
                                                         description:
                                                             'Present only when history=silver or history=both.',
+                                                    },
+                                                    platinum: {
+                                                        type: 'array',
+                                                        items: historyPoint,
+                                                        description: 'Present only when history=platinum.',
+                                                    },
+                                                    palladium: {
+                                                        type: 'array',
+                                                        items: historyPoint,
+                                                        description: 'Present only when history=palladium.',
                                                     },
                                                 },
                                             },

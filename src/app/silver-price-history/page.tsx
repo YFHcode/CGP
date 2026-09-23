@@ -13,6 +13,7 @@ import { localeAlternates } from '@/lib/locale-pages';
 import { describeCoverage } from '@/lib/coverage';
 import { annualReturns, computeDrawdowns } from '@/lib/insights-metrics';
 import { AnnualReturnsTable } from '@/components/AnnualReturnsTable';
+import { rangeChartSeries } from '@/lib/chart-window';
 
 /**
  * Silver's counterpart to /gold-price-history.
@@ -110,7 +111,7 @@ export default async function SilverPriceHistoryPage() {
             <LazyPriceChart
                 lockMetal
                 metal="silver"
-                series={series}
+                {...rangeChartSeries('silver', series)}
                 source={history.source}
                 title="Historical silver closing prices"
             />
@@ -140,7 +141,8 @@ export default async function SilverPriceHistoryPage() {
 
                         <div className="mt-6">
                             <DataExport
-                                points={series}
+                                metal="silver"
+                                rows={series.length}
                                 filename="chartgoldprice-silver-daily-closes.csv"
                                 label="Download silver history"
                             />

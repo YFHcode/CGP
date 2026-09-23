@@ -34,6 +34,7 @@ export function MilestoneTimeline({ notable, series, routeBase }: MilestoneTimel
                         <div>
                             <Link
                                 href={`${routeBase}/${slugForKey(date, 'day')}`}
+                                prefetch={false}
                                 className="font-medium text-gold-400 hover:text-gold-300"
                             >
                                 {formatLongDate(date)}

@@ -88,6 +88,7 @@ export function ClosedDayPage({
                                 </p>
                                 <Link
                                     href={`${routeBase}/${slugForKey(previous.date, 'day')}`}
+                                    prefetch={false}
                                     className="mt-1 inline-block text-sm text-gold-400 hover:text-gold-300"
                                 >
                                     {formatLongDate(previous.date)}
@@ -104,6 +105,7 @@ export function ClosedDayPage({
                                 </p>
                                 <Link
                                     href={`${routeBase}/${slugForKey(next.date, 'day')}`}
+                                    prefetch={false}
                                     className="mt-1 inline-block text-sm text-gold-400 hover:text-gold-300"
                                 >
                                     {formatLongDate(next.date)}
@@ -138,6 +140,7 @@ export function ClosedDayPage({
                         For the whole month, see{' '}
                         <Link
                             href={`${routeBase}/${slugForKey(monthSlug, 'month')}`}
+                            prefetch={false}
                             className="text-gold-400 hover:text-gold-300"
                         >
                             {metalName.toLowerCase()} prices in {monthLabel}

@@ -13,6 +13,7 @@ import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import { periodFaqSchema } from '@/lib/period-faq';
 import { METAL_ROUTES } from '@/lib/history-periods';
 import type { MetalSymbol } from '@/types';
+import { FORECAST_TAIL } from '@/lib/chart-window';
 
 /**
  * Seven-day forecast pages.
@@ -139,7 +140,7 @@ export async function ForecastPage({ metal }: { metal: MetalSymbol }) {
                     <section className="bg-black py-10">
                         <div className="container mx-auto px-4">
                             <LazyForecastChart
-                                history={series}
+                                history={series.slice(-FORECAST_TAIL)}
                                 forecast={result.points}
                                 metalName={route.name}
                                 color={metal === 'XAU' ? '#d6a93e' : '#94a3b8'}

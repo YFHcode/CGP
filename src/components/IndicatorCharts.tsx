@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 
 import type { BollingerPoint, IndicatorPoint, MacdPoint } from '@/lib/indicators';
+import { INDICATOR_WINDOW } from '@/lib/chart-window';
 
 /**
  * Indicator panels for the charts pages.
@@ -25,7 +26,7 @@ import type { BollingerPoint, IndicatorPoint, MacdPoint } from '@/lib/indicators
  * window they get.
  */
 
-const WINDOW = 180;
+const WINDOW = INDICATOR_WINDOW;
 
 const label = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
@@ -174,7 +175,7 @@ export function BollingerChart({
     );
 }
 
-export function RatioChart({ points }: { points: IndicatorPoint[] }) {
+export function RatioChart({ points, mean: fullRecordMean }: { points: IndicatorPoint[]; mean?: number }) {
     // The ratio's interest is long-run, so this one keeps the full record and
     // downsamples instead of trimming to six months.
     const all = points.filter((p) => p.value !== null);
@@ -183,8 +184,12 @@ export function RatioChart({ points }: { points: IndicatorPoint[] }) {
         .filter((_, i) => i % step === 0)
         .map((p) => ({ label: label(p.date), ratio: p.value as number }));
 
+    // The page now sends the thinned points (src/lib/chart-window.ts,
+    // thinRatio), so the mean of *these* would drift from the full-record mean
+    // the reference line has always shown. The server passes that one along;
+    // computing it here is only the fallback for a caller that sends the lot.
     const values = all.map((p) => p.value as number);
-    const mean = values.reduce((a, b) => a + b, 0) / (values.length || 1);
+    const mean = fullRecordMean ?? values.reduce((a, b) => a + b, 0) / (values.length || 1);
 
     return (
         <Panel

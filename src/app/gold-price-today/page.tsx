@@ -14,6 +14,7 @@ import { formatLongDate, utcDateOf } from '@/lib/history-periods';
 import { formatCurrency } from '@/lib/currencies';
 import type { Metadata } from 'next';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
+import { rangeChartSeries } from '@/lib/chart-window';
 
 // Static until the next deploy: see the note on readJson in src/lib/prices.ts.
 // Every figure on this page is read from committed JSON, so revalidating
@@ -99,7 +100,7 @@ export default async function GoldPriceTodayPage() {
       <LazyPriceChart
         lockMetal
         metal="gold"
-        series={history.gold}
+        {...rangeChartSeries('gold', history.gold)}
         source={history.source}
         title="Gold price history"
       />

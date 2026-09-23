@@ -10,6 +10,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { getPrices, getHistory, getMinorMetal } from '@/lib/prices';
 import { computeHomeInsights } from '@/lib/home-insights';
 import { faqSchema, pageMetadata } from '@/lib/seo';
+import { rangeChartPair } from '@/lib/chart-window';
 
 /**
  * Homepage.
@@ -81,7 +82,7 @@ export default async function Home() {
 
             <MarketPulse insights={insights} />
 
-            <LazyExploreChart gold={history.gold} silver={history.silver} source={history.source} />
+            <LazyExploreChart {...rangeChartPair(history.gold, history.silver)} source={history.source} />
 
             <AnalysisSection gold={gold} silver={silver} />
 

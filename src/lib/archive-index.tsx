@@ -8,7 +8,14 @@ import { METAL_ROUTES, getPeriodStats, listPeriods, parsePeriod, slugForKey } fr
 import { breadcrumbSchema, pageMetadata } from '@/lib/seo';
 import type { MetalSymbol } from '@/types';
 
-/** Index of every period page, so the archive is crawlable from one hub. */
+/**
+ * Index of every period page, so the archive is crawlable from one hub.
+ *
+ * Its year and month links are prefetch={false}: this page puts a few hundred
+ * archive links on screen at once, and letting Next prefetch them would turn
+ * one visit into hundreds of ISR reads of cold pages. See the note at the top
+ * of src/components/PeriodPage.tsx.
+ */
 
 export function archiveMetadata(metal: MetalSymbol) {
     const route = METAL_ROUTES[metal];
@@ -74,6 +81,7 @@ export async function renderArchiveIndex(metal: MetalSymbol) {
                                         <li key={year}>
                                             <Link
                                                 href={`${route.base}/${slugForKey(year, 'year')}`}
+                                                prefetch={false}
                                                 className="block rounded-lg border border-white/10 px-5 py-3 transition-colors hover:border-gold-500/30 hover:text-gold-300"
                                             >
                                                 <span className="block font-semibold text-white">{year}</span>
@@ -104,6 +112,7 @@ export async function renderArchiveIndex(metal: MetalSymbol) {
                                         <li key={month}>
                                             <Link
                                                 href={`${route.base}/${slugForKey(month, 'month')}`}
+                                                prefetch={false}
                                                 className="flex items-baseline justify-between gap-2 rounded-lg border border-white/10 px-4 py-3 text-sm transition-colors hover:border-gold-500/30"
                                             >
                                                 <span className="text-zinc-200">{period.label}</span>
