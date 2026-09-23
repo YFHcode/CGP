@@ -202,8 +202,10 @@ export async function renderPeriodPage(metal: MetalSymbol, periodSlug: string) {
     const period = parsePeriod(periodSlug);
     if (!period) notFound();
 
-    // Old ISO URLs still resolve, but redirect to the canonical readable slug
-    // so the same content is never served at two addresses.
+    // Non-canonical forms (ISO dates, zero-padded days) are redirected by
+    // next.config.ts before this route is reached: with dynamicParams = false
+    // the router 404s any slug that was not prerendered, so a redirect here
+    // never runs for them. This stays as a fallback if that setting changes.
     if (periodSlug !== period.slug) {
         redirect(`${METAL_ROUTES[metal].base}/${period.slug}`);
     }

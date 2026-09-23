@@ -7,7 +7,7 @@ import { LastUpdated } from '@/components/LastUpdated';
 import { CurrencyValue } from '@/components/CurrencyValue';
 import { getPrices, getHistory } from '@/lib/prices';
 import { LOCALE_PAGES, findLocalePage, localeAlternates } from '@/lib/locale-pages';
-import { pageMetadata, SITE_URL } from '@/lib/seo';
+import { pageMetadata, SITE_NAME, SITE_URL } from '@/lib/seo';
 import { periodFaqSchema } from '@/lib/period-faq';
 import { GRAMS_PER_OZ } from '@/lib/conversions';
 import { rangeChartSeries } from '@/lib/chart-window';
@@ -57,6 +57,10 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     // translations of one page.
     return {
         ...base,
+        // Spelled out rather than left to the root title template: a layout's
+        // template only applies to child segments, and this page now shares a
+        // segment with its own root layout (src/app/[locale]/layout.tsx).
+        title: { absolute: `${config.title} | ${SITE_NAME}` },
         alternates: {
             canonical: `${SITE_URL}/${config.locale}`,
             languages: localeAlternates(config.canonicalEnglishPath),

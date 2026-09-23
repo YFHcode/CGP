@@ -1,8 +1,14 @@
 import Link from 'next/link';
 import { MAIN_NAV } from '@/lib/navigation';
 
-/** Styled 404. The default Next.js page dropped users out of the dark theme. */
-export default function NotFound() {
+/**
+ * Styled 404 body. The default Next.js page dropped users out of the dark theme.
+ *
+ * Rendered by two files: src/app/(site)/not-found.tsx, for notFound() inside
+ * the English site, and src/app/global-not-found.tsx, for URLs no route
+ * matches — which with two root layouts no single layout can wrap.
+ */
+export function NotFoundContent() {
     return (
         <div className="container mx-auto flex max-w-2xl flex-col items-center px-4 py-24 text-center">
             <p className="text-7xl font-bold text-gold-400">404</p>

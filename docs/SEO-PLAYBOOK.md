@@ -1,5 +1,10 @@
 # SEO Engineering Playbook
 
+> **Superseded for general use by [UNIVERSAL-SEO-PLAYBOOK.md](UNIVERSAL-SEO-PLAYBOOK.md)**,
+> which covers every site type, re-checks dated facts (September 2026) and
+> ships tested audit scripts. This version stays as the record of what was
+> learned on this project.
+
 A working reference for agents building and auditing websites. Every rule here
 comes from a defect that actually shipped, an audit that actually found
 something, or a measurement that turned out to be wrong. It is framework-neutral
@@ -246,7 +251,7 @@ card and fall back to the small one.
 
 | Type | Use for | Still yields rich results? |
 |---|---|---|
-| `Organization` + `WebSite` | Site-wide, once, in the root layout | Sitelinks searchbox, knowledge panel signals |
+| `Organization` + `WebSite` | Site-wide, once, in the root layout | Site name and logo in results, knowledge panel signals (the sitelinks search box was removed in November 2024) |
 | `BreadcrumbList` | Every page below the root | **Yes** — visible breadcrumb in SERP |
 | `Product` + `Offer` | Commerce | **Yes** |
 | `Article` / `NewsArticle` | Editorial | **Yes** |
@@ -767,7 +772,7 @@ Do not spend effort on these, and do not let anyone justify work with them:
 
 | Tactic | Status |
 |---|---|
-| `FAQPage` rich results | Restricted (Aug 2023) to authoritative government and health sites. Schema still useful for entity data; no visible SERP feature. |
+| `FAQPage` rich results | Restricted in August 2023, removed entirely in May 2026. Schema still useful for entity data; no visible SERP feature. |
 | `HowTo` rich results | Deprecated for desktop and mobile. |
 | Keyword density / meta keywords | Dead for decades. `<meta name="keywords">` is ignored. |
 | Exact-match domains | Neutralised long ago. A brandable domain is worth more. |
