@@ -14,6 +14,38 @@ export default function robots(): MetadataRoute.Robots {
                 allow: ['/', '/api/data'],
                 disallow: ['/api/'],
             },
+            {
+                // Crawlers that cost ISR reads and send nothing back.
+                //
+                // Vercel's bot breakdown for twelve hours in September 2026:
+                // PetalBot 529 requests and SemrushBot 523, each ~85% cache
+                // misses — together about a quarter of all bot misses, and
+                // every miss is a billed read of a ~113 KB archive page.
+                // PetalBot feeds Huawei's Petal Search, which sends this site
+                // no measurable traffic. The rest are SEO-tool crawlers that
+                // index the site for other people's competitor research.
+                //
+                // Blocking SemrushBot does not touch Semrush's Authority
+                // Score, which is computed from links on *other* sites. Its
+                // Site Audit uses a separate agent, SiteAuditBot, which is
+                // deliberately not listed, so auditing this site still works.
+                //
+                // Search engines (Googlebot, Bingbot, Applebot) and AI
+                // assistants that cite sources (OAI-SearchBot and the like)
+                // are not here: they are the reason the archive exists.
+                userAgent: [
+                    'PetalBot',
+                    'SemrushBot',
+                    'AhrefsBot',
+                    'MJ12bot',
+                    'DotBot',
+                    'BLEXBot',
+                    'DataForSeoBot',
+                    'serpstatbot',
+                    'Barkrowler',
+                ],
+                disallow: ['/'],
+            },
         ],
         sitemap: `${SITE_URL}/sitemap.xml`,
         // No `host:` directive.
