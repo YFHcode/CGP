@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-10-25T10:36:18.119Z",
+  "updatedAt": "2026-10-25T20:19:09.271Z",
   "metals": {
     "XAU": {
-      "timestamp": 1792924518,
+      "timestamp": 1792959477,
       "metal": "XAU",
       "currency": "USD",
       "exchange": "FOREXCOM",
@@ -27,7 +27,7 @@
       "price_gram_10k": 53.5349
     },
     "XAG": {
-      "timestamp": 1792924567,
+      "timestamp": 1792959480,
       "metal": "XAG",
       "currency": "USD",
       "exchange": "FOREXCOM",
@@ -52,7 +52,7 @@
       "price_gram_10k": 0.7223
     },
     "XPT": {
-      "timestamp": 1792924574,
+      "timestamp": 1792959545,
       "metal": "XPT",
       "currency": "USD",
       "exchange": "gold-api.com",
@@ -61,7 +61,7 @@
       "open_price": 1558,
       "low_price": 1558,
       "high_price": 1558,
-      "open_time": 1792924574,
+      "open_time": 1792959545,
       "price": 1558,
       "ch": 0,
       "chp": 0,
@@ -77,7 +77,7 @@
       "price_gram_10k": 20.871192980801
     },
     "XPD": {
-      "timestamp": 1792924575,
+      "timestamp": 1792959547,
       "metal": "XPD",
       "currency": "USD",
       "exchange": "gold-api.com",
@@ -86,7 +86,7 @@
       "open_price": 1066,
       "low_price": 1066,
       "high_price": 1066,
-      "open_time": 1792924575,
+      "open_time": 1792959547,
       "price": 1066,
       "ch": 0,
       "chp": 0,
